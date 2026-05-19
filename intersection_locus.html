@@ -1916,16 +1916,16 @@ const VISUAL_FX_STYLES = [
   { id: 9, name: '稲妻', desc: 'ジグザグの稲妻' },
 ];
 const SOUND_FX_STYLES = [
-  { id: 0, name: 'ソフト', desc: '短い下降ピング' },
-  { id: 1, name: 'ベル', desc: '澄んだ鐘の音' },
-  { id: 2, name: 'クリック', desc: '硬いタップ音' },
-  { id: 3, name: 'ポップ', desc: '軽いポップ音' },
-  { id: 4, name: 'ドラム', desc: '低い打撃音' },
-  { id: 5, name: 'チャイム', desc: '3音のチャイム' },
-  { id: 6, name: 'ワープ', desc: '音程が滑らかに変化' },
-  { id: 7, name: 'ガラス', desc: '高音のきらめき' },
-  { id: 8, name: 'ノック', desc: '木を叩く音' },
-  { id: 9, name: '笛', desc: '上昇する笛の音' },
+  { id: 0, name: 'カリンバ', desc: 'やわらかい打音（座標で音階）' },
+  { id: 1, name: 'ベル', desc: '澄んだ鐘の余韻' },
+  { id: 2, name: '木', desc: '短い木のタップ' },
+  { id: 3, name: 'ポップ', desc: '軽い粒の音' },
+  { id: 4, name: 'マリンバ', desc: '低めの木琴' },
+  { id: 5, name: 'チャイム', desc: '3音の和音' },
+  { id: 6, name: 'そよ風', desc: '息まちの打音' },
+  { id: 7, name: '星', desc: 'きらめく高音' },
+  { id: 8, name: 'ノック', desc: '小さな叩き音' },
+  { id: 9, name: '笛', desc: 'すっと伸びる音' },
 ];
 let fxStyleThumbsReady = false;
 
@@ -1934,6 +1934,21 @@ const hitFxChains = [];
 const lastHitFxByKey = {};
 const lastHitSoundMsByKey = {};
 let hitAudioCtx = null;
+let hitAudioMaster = null;
+const soundBuffers = {};
+
+/** ペンタトニック（Aマイナー.pentatonic 風）の半音オフセット */
+const PENTA_SEMI = [0, 3, 5, 7, 10];
+const PENTA_ROOT_MIDI = 57;
+const SOUND_BASE_HZ = {
+  kalimba: 329.63,
+  bell: 392,
+  wood: 261.63,
+  pop: 440,
+  marimba: 196,
+  airy: 523.25,
+  chime: 440,
+};
 
 function clampFxStyle(v, max) {
   const n = parseInt(v, 10);
@@ -1952,16 +1967,98 @@ function ensureHitAudio() {
 function unlockHitAudio() {
   const ac = ensureHitAudio();
   if (ac && ac.state === 'suspended') ac.resume().catch(() => {});
+  if (ac) preloadSoundBuffers(ac);
 }
 
-function intersectionSoundModifiers(wx, wy) {
-  const scale = Math.max(60, view.scale * 100);
-  const nx = wx / scale;
-  const ny = wy / scale;
-  const pitchMul = Math.pow(2, (nx * 0.42 + ny * 0.28) * 0.38);
-  const bright = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(nx * 0.65) * Math.cos(ny * 0.5));
-  const timbre = ((Math.abs(nx * 7.3 + ny * 5.1) % 1) + 0.5) % 1;
-  return { pitchMul, bright, timbre };
+function ensureHitAudioBus(ac) {
+  if (!hitAudioMaster) {
+    hitAudioMaster = ac.createGain();
+    hitAudioMaster.gain.value = 0.72;
+    const soft = ac.createBiquadFilter();
+    soft.type = 'lowpass';
+    soft.frequency.value = 7200;
+    soft.Q.value = 0.6;
+    hitAudioMaster.connect(soft);
+    soft.connect(ac.destination);
+  }
+  return hitAudioMaster;
+}
+
+function midiToHz(midi) {
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+/** 世界座標 → ペンタトニック上の周波数（きりの良い音程） */
+function worldToPentatonicHz(wx, wy, hue) {
+  const s = Math.max(80, view.scale * 110);
+  const u = (wx / s) * 0.2 + (wy / s) * 0.16 + (hue % 360) / 360 * 0.35;
+  const wrapped = ((u % 2.4) + 2.4) % 2.4;
+  const steps = PENTA_SEMI.length * 2;
+  const idx = Math.max(0, Math.min(steps - 1, Math.round((wrapped / 2.4) * (steps - 1))));
+  const octave = Math.floor(idx / PENTA_SEMI.length);
+  const semi = PENTA_SEMI[idx % PENTA_SEMI.length];
+  return midiToHz(PENTA_ROOT_MIDI + octave * 12 + semi);
+}
+
+function timbreForStyle(style) {
+  switch (style) {
+    case 1: return 'bell';
+    case 2: return 'wood';
+    case 3: return 'pop';
+    case 4: return 'marimba';
+    case 5: return 'chime';
+    case 6: return 'airy';
+    case 7: return 'bell';
+    case 8: return 'wood';
+    case 9: return 'airy';
+    default: return 'kalimba';
+  }
+}
+
+function renderSoundBuffer(ac, kind) {
+  const sr = ac.sampleRate;
+  const dur = kind === 'wood' || kind === 'pop' ? 0.14 : kind === 'marimba' ? 0.32 : 0.42;
+  const len = Math.ceil(sr * dur);
+  const buf = ac.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+  const f0 = SOUND_BASE_HZ[kind] || SOUND_BASE_HZ.kalimba;
+  for (let i = 0; i < len; i++) {
+    const t = i / sr;
+    let s = 0;
+    const atk = Math.min(1, t / 0.003);
+    if (kind === 'bell' || kind === 'chime') {
+      s = Math.sin(2 * Math.PI * f0 * t) * Math.exp(-t * 7)
+        + Math.sin(2 * Math.PI * f0 * 2.01 * t) * Math.exp(-t * 11) * 0.35
+        + Math.sin(2 * Math.PI * f0 * 2.76 * t) * Math.exp(-t * 16) * 0.18;
+    } else if (kind === 'kalimba' || kind === 'marimba') {
+      const damp = kind === 'marimba' ? 9 : 11;
+      s = Math.sin(2 * Math.PI * f0 * t) * Math.exp(-t * damp)
+        + Math.sin(2 * Math.PI * f0 * 2.0 * t) * Math.exp(-t * damp * 1.4) * 0.22;
+    } else if (kind === 'wood') {
+      s = Math.sin(2 * Math.PI * f0 * t) * Math.exp(-t * 28)
+        + Math.sin(2 * Math.PI * f0 * 2.5 * t) * Math.exp(-t * 35) * 0.15;
+    } else if (kind === 'pop') {
+      s = Math.sin(2 * Math.PI * f0 * t) * Math.exp(-t * 22);
+    } else if (kind === 'airy') {
+      s = Math.sin(2 * Math.PI * f0 * t) * Math.exp(-t * 9)
+        + Math.sin(2 * Math.PI * f0 * 1.5 * t) * Math.exp(-t * 12) * 0.25;
+    }
+    if (t < 0.005) s += (Math.random() * 2 - 1) * 0.04 * (1 - t / 0.005);
+    d[i] = s * atk;
+  }
+  let peak = 0;
+  for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
+  if (peak > 1e-6) {
+    const g = 0.7 / peak;
+    for (let i = 0; i < len; i++) d[i] *= g;
+  }
+  return buf;
+}
+
+function preloadSoundBuffers(ac) {
+  Object.keys(SOUND_BASE_HZ).forEach(k => {
+    if (!soundBuffers[k]) soundBuffers[k] = renderSoundBuffer(ac, k);
+  });
 }
 
 function isHitConnected(prev, wx, wy, now) {
@@ -1971,62 +2068,52 @@ function isHitConnected(prev, wx, wy, now) {
   return Math.hypot(wx - prev.wx, wy - prev.wy) < maxDist;
 }
 
-function playTone(ac, t0, type, f0, f1, dur, peak) {
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(Math.max(20, f0), t0);
-  if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
-  gain.gain.setValueAtTime(0.0001, t0);
-  gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.006);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(gain);
-  gain.connect(ac.destination);
-  osc.start(t0);
-  osc.stop(t0 + dur + 0.02);
+function playMalletHit(ac, bus, buffer, baseHz, targetHz, t0, peak, decay) {
+  const src = ac.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = Math.max(0.35, Math.min(3.2, targetHz / baseHz));
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0001, peak), t0 + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + decay);
+  src.connect(g);
+  g.connect(bus);
+  src.start(t0);
+  src.stop(t0 + decay + 0.05);
 }
 
-function fadeAllPairSounds() { /* 旧 legato 用・互換のため残す */ }
+function fadeAllPairSounds() { /* サンプル打音方式のため不要 */ }
 
 function playIntersectionSound(key, hue, wx, wy, style, enabled) {
   if (!enabled) return;
   const now = performance.now();
-  const minGap = style === 2 ? 35 : 50;
+  const minGap = style === 5 ? 130 : style === 2 || style === 8 ? 75 : 100;
   if (now - (lastHitSoundMsByKey[key] || 0) < minGap) return;
   lastHitSoundMsByKey[key] = now;
   const ac = ensureHitAudio();
   if (!ac) return;
   if (ac.state === 'suspended') ac.resume().catch(() => {});
   try {
+    const timbre = timbreForStyle(style);
+    if (!soundBuffers[timbre]) soundBuffers[timbre] = renderSoundBuffer(ac, timbre);
+    const bus = ensureHitAudioBus(ac);
     const t0 = ac.currentTime;
-    const mod = intersectionSoundModifiers(wx, wy);
-    const base = (360 + (hue % 90) * 1.4) * mod.pitchMul;
-    const pk = 0.07 + mod.bright * 0.07;
-    const st = style;
-    if (st === 1) {
-      playTone(ac, t0, 'triangle', base * 1.25, base * 0.88, 0.22, pk);
-      playTone(ac, t0 + 0.01, 'sine', base * 2.05, base * 1.75, 0.14, pk * 0.45);
-    } else if (st === 2) {
-      playTone(ac, t0, 'square', base * 1.6, base * 0.55, 0.035, pk * 0.85);
-    } else if (st === 3) {
-      playTone(ac, t0, 'sine', base * 0.55, base * 1.35, 0.09, pk);
-    } else if (st === 4) {
-      playTone(ac, t0, 'sine', base * 0.28, base * 0.14, 0.14, pk * 1.1);
-    } else if (st === 5) {
-      [1, 1.26, 1.58].forEach((m, i) => {
-        playTone(ac, t0 + i * 0.045, 'sine', base * m, base * m * 0.92, 0.12, pk * 0.55);
+    const hz = worldToPentatonicHz(wx, wy, hue);
+    const base = SOUND_BASE_HZ[timbre];
+    const s = Math.max(60, view.scale * 100);
+    const vol = 0.052 + 0.018 * (0.5 + 0.5 * Math.sin(wx / s) * Math.cos(wy / s));
+    const decay = timbre === 'wood' || timbre === 'pop' ? 0.12 : 0.28;
+
+    if (style === 5) {
+      const chord = [1, 5 / 4, 3 / 2];
+      chord.forEach((r, i) => {
+        playMalletHit(ac, bus, soundBuffers.chime, SOUND_BASE_HZ.chime, hz * r, t0 + i * 0.055, vol * 0.42, 0.32);
       });
-    } else if (st === 6) {
-      playTone(ac, t0, 'sawtooth', base * 0.7, base * 1.8, 0.11, pk * 0.5);
-    } else if (st === 7) {
-      playTone(ac, t0, 'sine', base * 2.4, base * 2.1, 0.06, pk * 0.35);
-      playTone(ac, t0, 'triangle', base * 3.1 + mod.timbre * 80, base * 2.8, 0.05, pk * 0.25);
-    } else if (st === 8) {
-      playTone(ac, t0, 'square', base * 0.45, base * 0.22, 0.05, pk * 0.9);
-    } else if (st === 9) {
-      playTone(ac, t0, 'sine', base * 0.85, base * 2.2, 0.14, pk * 0.75);
+    } else if (style === 9) {
+      playMalletHit(ac, bus, soundBuffers.airy, SOUND_BASE_HZ.airy, hz, t0, vol * 0.9, 0.22);
+      playMalletHit(ac, bus, soundBuffers.airy, SOUND_BASE_HZ.airy, hz * 1.25, t0 + 0.04, vol * 0.55, 0.2);
     } else {
-      playTone(ac, t0, 'sine', base, base * 0.52, 0.1, pk);
+      playMalletHit(ac, bus, soundBuffers[timbre], base, hz, t0, vol, decay);
     }
   } catch { /* ignore */ }
 }
@@ -2242,6 +2329,173 @@ function buildVisualFxThumb(styleId, size) {
   return cv;
 }
 
+function soundThumbSample(u, styleId) {
+  const t = u * 3.2;
+  switch (styleId) {
+    case 1:
+      return Math.sin(t * 2.2) * Math.exp(-t * 1.1)
+        + Math.sin(t * 4.4) * Math.exp(-t * 2) * 0.45;
+    case 2:
+      return t < 0.35 ? Math.sin(t * 9) * Math.exp(-t * 14) : 0;
+    case 3:
+      return Math.sin(t * 3) * Math.exp(-t * 4.5);
+    case 4:
+      return Math.sin(t * 1.6) * Math.exp(-t * 1.4) * 0.85;
+    case 5: {
+      const p1 = Math.exp(-Math.pow((u - 0.22) * 14, 2));
+      const p2 = Math.exp(-Math.pow((u - 0.5) * 14, 2));
+      const p3 = Math.exp(-Math.pow((u - 0.78) * 14, 2));
+      return (p1 + p2 * 0.9 + p3 * 0.85) * 0.9;
+    }
+    case 6:
+      return Math.sin(t * 1.8) * Math.exp(-t * 1.6) * 0.75
+        + Math.sin(t * 2.8) * Math.exp(-t * 2.2) * 0.25;
+    case 7:
+      return Math.sin(t * 3.5) * Math.exp(-t * 2.2)
+        + Math.sin(t * 6) * Math.exp(-t * 3.5) * 0.35;
+    case 8:
+      return t < 0.2 ? 0.95 * Math.exp(-t * 22) : 0.08 * Math.exp(-(t - 0.2) * 6);
+    case 9:
+      return Math.sin(t * (1.2 + u * 2.8)) * Math.exp(-t * 1.3) * 0.8;
+    default:
+      return Math.sin(t * 2.5) * Math.exp(-t * 1.8)
+        + Math.sin(t * 5) * Math.exp(-t * 3) * 0.2;
+  }
+}
+
+function drawSoundFxThumbDecor(c, size, styleId) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const ink = 'rgba(175,215,255,0.85)';
+  const dim = 'rgba(120,170,220,0.45)';
+  c.save();
+  switch (styleId) {
+    case 0:
+      c.fillStyle = dim;
+      c.fillRect(cx - 7, cy + 5, 14, 2);
+      c.beginPath();
+      c.arc(cx, cy - 1, 3, 0, Math.PI * 2);
+      c.fillStyle = ink;
+      c.fill();
+      break;
+    case 1:
+      c.strokeStyle = dim;
+      c.lineWidth = 1;
+      [6, 9].forEach(r => {
+        c.beginPath();
+        c.arc(cx, cy + 2, r, Math.PI * 1.15, Math.PI * 1.85);
+        c.stroke();
+      });
+      c.beginPath();
+      c.moveTo(cx - 4, cy - 5);
+      c.lineTo(cx + 4, cy - 5);
+      c.lineTo(cx + 3, cy + 1);
+      c.lineTo(cx - 3, cy + 1);
+      c.closePath();
+      c.fillStyle = ink;
+      c.fill();
+      break;
+    case 2:
+      c.fillStyle = 'rgba(160,130,90,0.75)';
+      c.fillRect(cx - 6, cy + 2, 12, 4);
+      c.strokeStyle = ink;
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.moveTo(cx, cy - 6);
+      c.lineTo(cx, cy + 1);
+      c.stroke();
+      break;
+    case 3:
+      c.beginPath();
+      c.arc(cx, cy, 5, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(180,220,255,0.25)';
+      c.fill();
+      c.strokeStyle = ink;
+      c.lineWidth = 1.2;
+      c.stroke();
+      break;
+    case 4:
+      c.fillStyle = 'rgba(140,180,230,0.5)';
+      c.fillRect(cx - 9, cy + 4, 18, 3);
+      c.fillRect(cx - 7, cy + 1, 14, 2);
+      c.fillStyle = ink;
+      c.beginPath();
+      c.arc(cx, cy - 3, 2.5, 0, Math.PI * 2);
+      c.fill();
+      break;
+    case 5:
+      c.strokeStyle = ink;
+      c.lineWidth = 1.2;
+      c.lineCap = 'round';
+      [-6, 0, 6].forEach(dx => {
+        c.beginPath();
+        c.moveTo(cx + dx, cy + 6);
+        c.lineTo(cx + dx, cy - 5);
+        c.stroke();
+      });
+      c.fillStyle = dim;
+      [-6, 0, 6].forEach(dx => {
+        c.beginPath();
+        c.arc(cx + dx, cy - 6, 2, 0, Math.PI * 2);
+        c.fill();
+      });
+      break;
+    case 6:
+      c.strokeStyle = dim;
+      c.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        c.beginPath();
+        c.moveTo(cx - 8 + i * 5, cy + 4);
+        c.quadraticCurveTo(cx - 5 + i * 5, cy - 6, cx - 2 + i * 5, cy + 2);
+        c.stroke();
+      }
+      break;
+    case 7:
+      c.fillStyle = ink;
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 - Math.PI / 2;
+        c.beginPath();
+        c.arc(cx + Math.cos(a) * 7, cy + Math.sin(a) * 7, 1.2, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.beginPath();
+      c.arc(cx, cy, 2.5, 0, Math.PI * 2);
+      c.fill();
+      break;
+    case 8:
+      c.fillStyle = 'rgba(150,120,85,0.7)';
+      c.beginPath();
+      c.arc(cx + 5, cy + 5, 3, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = ink;
+      c.lineWidth = 1.3;
+      c.beginPath();
+      c.moveTo(cx - 6, cy - 5);
+      c.lineTo(cx + 2, cy + 3);
+      c.stroke();
+      break;
+    case 9:
+      c.strokeStyle = ink;
+      c.lineWidth = 1.2;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(cx - 8, cy + 5);
+      c.quadraticCurveTo(cx - 2, cy - 2, cx + 8, cy - 6);
+      c.stroke();
+      c.fillStyle = dim;
+      c.beginPath();
+      c.moveTo(cx + 8, cy - 6);
+      c.lineTo(cx + 10, cy - 4);
+      c.lineTo(cx + 8, cy - 2);
+      c.closePath();
+      c.fill();
+      break;
+    default:
+      break;
+  }
+  c.restore();
+}
+
 function buildSoundFxThumb(styleId, size) {
   const cv = document.createElement('canvas');
   cv.width = cv.height = size;
@@ -2249,25 +2503,40 @@ function buildSoundFxThumb(styleId, size) {
   c.fillStyle = '#0b0c14';
   c.fillRect(0, 0, size, size);
   const mid = size / 2;
-  const amp = size * 0.28;
-  const wave = (u, ph) => {
-    const env = 0.35 + 0.65 * Math.sin(u * Math.PI);
-    if (styleId === 4) return Math.sin(ph) * amp * 0.4 * env * (1 - u * 0.2);
-    if (styleId === 5) return (Math.sin(ph) + Math.sin(ph * 1.5) * 0.4) * amp * 0.3 * env;
-    return Math.sin(ph + u * 2.5) * amp * 0.42 * env;
-  };
-  c.strokeStyle = 'rgba(160,210,255,.75)';
-  c.lineWidth = 1.4;
-  c.lineCap = 'round';
+  const amp = size * 0.22;
+  const pad = 3;
+  const waveFill = 'rgba(100,160,220,0.12)';
+  const waveStroke = 'rgba(160,210,255,0.8)';
+
   c.beginPath();
-  for (let i = 0; i <= 28; i++) {
-    const u = i / 28;
-    const x = 3 + u * (size - 6);
-    const y = mid + wave(u, u * Math.PI * 2);
+  for (let i = 0; i <= 32; i++) {
+    const u = i / 32;
+    const x = pad + u * (size - pad * 2);
+    const y = mid + soundThumbSample(u, styleId) * amp;
     if (i === 0) c.moveTo(x, y);
     else c.lineTo(x, y);
   }
+  c.lineTo(size - pad, size - pad);
+  c.lineTo(pad, size - pad);
+  c.closePath();
+  c.fillStyle = waveFill;
+  c.fill();
+
+  c.beginPath();
+  for (let i = 0; i <= 32; i++) {
+    const u = i / 32;
+    const x = pad + u * (size - pad * 2);
+    const y = mid + soundThumbSample(u, styleId) * amp;
+    if (i === 0) c.moveTo(x, y);
+    else c.lineTo(x, y);
+  }
+  c.strokeStyle = waveStroke;
+  c.lineWidth = 1.3;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
   c.stroke();
+
+  drawSoundFxThumbDecor(c, size, styleId);
   return cv;
 }
 
