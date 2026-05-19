@@ -1,0 +1,4683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>交点の軌跡</title>
+<script src="vendor/math.min.js"></script>
+<script src="vendor/fflate.min.js"></script>
+<script src="presets/global_presets_data.js"></script>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --text: #fff;
+  --text-soft: rgba(255,255,255,.88);
+  --text-muted: rgba(255,255,255,.72);
+}
+body {
+  background:#0a0a12; color:var(--text);
+  font-family:'Menlo','Consolas',monospace; font-size:12px;
+  display:flex; flex-direction:column; align-items:center;
+  padding:10px 14px 18px; gap:8px;
+  min-height:100vh;
+}
+h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-soft); width:100%; max-width:1280px; }
+
+#app-shell { width:100%; max-width:1280px; display:flex; flex-direction:column; gap:10px; }
+
+/* ── main row: canvas + panel side by side ── */
+#main-row { display:flex; gap:14px; align-items:flex-start; width:100%; }
+#canvas-col { display:flex; flex-direction:column; gap:6px; flex:1; min-width:0; }
+#side-panel { display:flex; flex-direction:column; gap:0; flex-shrink:0; width:320px; max-height:calc(100vh - 120px); overflow-y:auto; }
+#side-panel::-webkit-scrollbar { width:10px; }
+#side-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:5px; }
+#canvas-wrap { position:relative; line-height:0; }
+#canvas-wrap canvas { display:block; border-radius:4px; border:1px solid rgba(255,255,255,.06); }
+.canvas-hint {
+  position:absolute; bottom:6px; left:8px; font-size:9px;
+  color:var(--text-soft); pointer-events:none;
+}
+#demo-banner {
+  display:none; position:absolute; inset:0; z-index:6;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,.42); pointer-events:none;
+  font-size:17px; letter-spacing:.28em; color:rgba(255,230,150,.96);
+  text-shadow:0 0 24px rgba(255,200,80,.35);
+}
+#demo-banner.visible { display:flex; }
+#demo-countdown {
+  display:none; position:absolute; right:10px; bottom:10px; z-index:7;
+  pointer-events:none; font-size:22px; font-variant-numeric:tabular-nums;
+  letter-spacing:.06em; color:rgba(255,230,150,.92);
+  text-shadow:0 0 12px rgba(0,0,0,.8);
+  padding:4px 10px; border-radius:4px;
+  background:rgba(0,0,0,.45); border:1px solid rgba(255,200,80,.25);
+}
+#demo-countdown.visible { display:block; }
+.sound-prefs-modal {
+  display:none; position:fixed; inset:0; z-index:40;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,.55); padding:16px;
+}
+.sound-prefs-modal.visible { display:flex; }
+.sound-prefs-box {
+  width:min(280px, 92vw); padding:18px 20px 16px;
+  background:#12121f; border:1px solid rgba(255,255,255,.14);
+  border-radius:8px; box-shadow:0 12px 40px rgba(0,0,0,.5);
+  display:flex; flex-direction:column; gap:12px; text-align:center;
+}
+.sound-prefs-title { font-size:14px; color:var(--text); letter-spacing:.12em; }
+.sound-prefs-desc {
+  font-size:11px; color:var(--text-soft); line-height:1.5; margin:0;
+}
+.sound-prefs-desc small { font-size:10px; opacity:.85; }
+.sound-prefs-actions {
+  display:flex; gap:10px; justify-content:center;
+}
+.sound-pref-btn {
+  min-width:88px; padding:8px 16px; font-size:12px;
+}
+.rec-indicator {
+  display:none; position:absolute; top:8px; right:8px;
+  align-items:center; gap:6px; padding:4px 10px;
+  background:rgba(0,0,0,.6); border:1px solid rgba(255,80,80,.25);
+  border-radius:4px; font-size:10px; color:rgba(255,140,140,.95);
+  pointer-events:none; letter-spacing:.06em;
+}
+.rec-indicator.active { display:flex; }
+#rec-status { color:rgba(255,220,160,.85); margin-left:4px; }
+.rec-dot {
+  width:8px; height:8px; border-radius:50%; background:#f44;
+  animation:rec-blink 1s ease-in-out infinite;
+}
+@keyframes rec-blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.reset-btn.rec-stop { color:#faa; border-color:rgba(255,90,90,.35); }
+.reset-btn.rec-stop:not(:disabled):hover { background:rgba(255,60,60,.15); color:#fcc; }
+.reset-btn.rec-stop:disabled { opacity:.35; }
+.reset-btn.rec-start:not(:disabled) { color:#faa; border-color:rgba(255,90,90,.25); }
+.reset-btn.rec-start:not(:disabled):hover { background:rgba(255,60,60,.12); }
+.reset-btn.rec-start:disabled { opacity:.4; }
+.formula-hint { color:var(--text-soft); margin-top:2px; }
+@media (max-width: 960px) {
+  #main-row { flex-direction:column; align-items:stretch; }
+  #side-panel { width:100% !important; max-width:none; max-height:none; overflow:visible; }
+  #canvas-col { align-items:center; }
+}
+
+/* ── panel ── */
+#panel { display:flex; flex-direction:column; gap:0; flex:1; min-width:0; }
+.panel-section {
+  padding:10px 12px; border-top:1px solid rgba(255,255,255,.06);
+  display:flex; flex-direction:column; gap:8px;
+}
+.panel-section:first-child { border-top:none; }
+.panel-section-title {
+  font-size:9px; color:var(--text-soft); letter-spacing:.12em; text-transform:uppercase;
+}
+.transport-block {
+  display:flex; flex-direction:column; gap:8px;
+  padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.08);
+  flex-shrink:0;
+}
+.transport-transport-row {
+  display:flex; gap:6px; align-items:stretch;
+}
+.transport-transport-row .transport-btn {
+  flex:1; min-height:40px; min-width:0;
+  font-size:17px; line-height:1; letter-spacing:.02em;
+  padding:8px 10px; border-radius:6px;
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.22);
+  color:var(--text);
+}
+.transport-transport-row .transport-btn-main {
+  flex:1.15; font-size:18px; font-weight:600;
+  background:rgba(100,180,255,.14); border-color:rgba(120,200,255,.45);
+  color:#e8f4ff;
+}
+.transport-transport-row .transport-btn-main.is-pausing {
+  background:rgba(255,200,80,.16); border-color:rgba(255,210,100,.5); color:#fff6d8;
+  letter-spacing:-0.06em;
+}
+.transport-transport-row .transport-btn:hover:not(:disabled) {
+  background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.35);
+}
+.transport-transport-row .transport-btn-main:hover:not(:disabled) {
+  background:rgba(100,180,255,.24); color:#fff;
+}
+.transport-transport-row .transport-btn-main.is-pausing:hover:not(:disabled) {
+  background:rgba(255,200,80,.26);
+}
+.transport-transport-row .transport-btn:disabled {
+  opacity:.26; cursor:not-allowed;
+  background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08);
+  color:rgba(255,255,255,.35);
+}
+.transport-utils-rows {
+  border:1px solid rgba(255,255,255,.08); border-radius:5px;
+  background:rgba(0,0,0,.12); padding:6px 8px;
+  display:flex; flex-direction:column; gap:5px;
+}
+.transport-utils-line {
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+}
+.transport-utils-lbl {
+  flex-shrink:0; font-size:10px; color:var(--text-soft);
+  letter-spacing:.04em; user-select:none; white-space:nowrap;
+  min-width:3.8em;
+}
+.transport-utils-actions {
+  display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+}
+.transport-utils-actions .reset-btn {
+  font-size:10px; padding:4px 8px; flex:0 0 auto; min-width:0;
+  white-space:nowrap;
+}
+.transport-opt-btn.active-choice {
+  color:var(--text); border-color:rgba(160,180,255,.4);
+  background:rgba(160,180,255,.12);
+}
+.transport-fx-block {
+  display:flex; flex-direction:column; gap:4px;
+}
+.transport-fx-block .transport-utils-lbl { min-width:4.6em; }
+.transport-fx-block.fx-disabled .transport-fx-patterns {
+  opacity:.3; pointer-events:none;
+}
+.transport-fx-patterns {
+  display:grid; grid-template-columns:repeat(5, minmax(0, 1fr));
+  gap:4px; padding:0 0 4px 3.9em; width:100%; box-sizing:border-box;
+}
+.fx-style-btn {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:3px 2px; border-radius:4px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1);
+  color:var(--text-soft); font:inherit; cursor:pointer; min-width:0;
+}
+.fx-style-btn:hover { background:rgba(255,255,255,.09); color:var(--text); }
+.fx-style-btn.active-choice {
+  border-color:rgba(160,180,255,.45); background:rgba(160,180,255,.12); color:var(--text);
+}
+.fx-style-thumb {
+  display:block; width:34px; height:34px; border-radius:3px;
+  border:1px solid rgba(255,255,255,.08); image-rendering:pixelated;
+}
+.fx-style-name {
+  font-size:7px; line-height:1.1; text-align:center;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.card-details {
+  display:none; flex-direction:column; gap:7px;
+  padding-top:8px; border-top:1px dashed rgba(255,255,255,.08);
+  margin-top:0;
+}
+.card-details.expanded { display:flex; }
+.details-tab {
+  width:100%; display:flex; align-items:center; gap:6px;
+  margin-top:8px; padding:7px 10px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1);
+  border-radius:4px; color:var(--text-soft); font:inherit; font-size:11px;
+  cursor:pointer; text-align:left; transition:background .15s, color .15s, border-color .15s;
+}
+.details-tab:hover { color:var(--text); background:rgba(255,255,255,.07); }
+.details-tab.open {
+  color:var(--text); border-color:rgba(160,180,255,.28);
+  background:rgba(160,180,255,.1);
+}
+.details-tab-chev { font-size:10px; opacity:.65; width:1em; flex-shrink:0; }
+.collapsible-section { border-top:1px solid rgba(255,255,255,.06); }
+.collapsible-hdr {
+  width:100%; display:flex; align-items:center; gap:6px;
+  padding:10px 14px; background:transparent; border:none;
+  color:var(--text-soft); font:inherit; font-size:11px; letter-spacing:.08em;
+  cursor:pointer; text-align:left;
+}
+.collapsible-hdr:hover { color:var(--text); background:rgba(255,255,255,.03); }
+.collapsible-hdr .chev { font-size:10px; opacity:.6; width:1em; }
+.collapsible-body { padding:0 14px 12px; display:flex; flex-direction:column; gap:8px; }
+.collapsible-body.is-collapsed { display:none; }
+.panel-inline-hdr { padding:0 0 6px; }
+#bottom-bar { width:100%; max-width:1280px; }
+.sliders-grid { display:flex; flex-direction:column; gap:8px; }
+#bottom-bar {
+  display:flex; flex-direction:column; gap:10px; width:100%;
+}
+.bottom-section { display:flex; flex-direction:column; gap:6px; }
+
+/* tabs */
+.tab-row {
+  display:flex; gap:2px; padding:0 4px; flex-wrap:wrap;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  align-items:flex-end;
+}
+.tab {
+  display:flex; align-items:center; gap:5px;
+  padding:6px 10px 5px 12px; background:transparent;
+  border:none; border-bottom:2px solid transparent;
+  color:var(--text-muted); font:inherit; font-size:11px;
+  cursor:pointer; transition:color .15s; position:relative; top:1px;
+}
+.tab:hover  { color:var(--text); }
+.tab.active { color:var(--text); }
+.tab.dim-tab{ opacity:.35; }
+.tab-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.tab-label { white-space:nowrap; }
+.tab-close {
+  display:flex; align-items:center; justify-content:center;
+  width:16px; height:16px; margin-left:2px; padding:0;
+  border:none; border-radius:3px; background:transparent;
+  color:var(--text-muted); font:inherit; font-size:13px; line-height:1;
+  cursor:pointer; flex-shrink:0;
+}
+.tab-close:hover {
+  background:rgba(255,60,60,.2); color:#f88;
+}
+.tab-add {
+  padding:5px 14px 4px; background:transparent;
+  border:none; border-bottom:2px solid transparent;
+  color:var(--text-muted); font:inherit; font-size:17px; line-height:1;
+  cursor:pointer; transition:color .15s; position:relative; top:1px;
+}
+.tab-add:hover { color:var(--text); }
+
+/* card area */
+.card-area {
+  border:1px solid rgba(255,255,255,.07); border-top:none;
+  border-radius:0 0 5px 5px; padding:12px 14px 14px;
+  background:rgba(255,255,255,.02);
+}
+.card-full { display:none; flex-direction:column; gap:7px; }
+.card-full.active { display:flex; }
+
+/* card header */
+.card-head {
+  display:flex; align-items:center; gap:8px;
+  padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,.05);
+}
+.shape-prev { border-radius:4px; flex-shrink:0; }
+.head-info  { display:flex; align-items:center; gap:6px; flex:1; flex-wrap:wrap; }
+.swatch     { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.card-name  { color:var(--text); font-size:12px; }
+.ftype-tag  { font-size:9px; padding:1px 5px; border-radius:3px;
+              background:rgba(255,255,255,.12); color:var(--text-soft); }
+.vis-btn {
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  border-radius:3px; color:var(--text); font:inherit; font-size:10px;
+  padding:2px 8px; cursor:pointer;
+}
+.vis-btn:hover { background:rgba(255,255,255,.12); color:var(--text); }
+.vis-btn.on    { color:#aac; border-color:rgba(160,180,255,.3); }
+/* field rows */
+.cf { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.cf-lbl {
+  width:70px; flex-shrink:0; text-align:right; padding-right:6px;
+  color:var(--text); font-size:11px;
+}
+.row { display:flex; align-items:center; gap:4px; }
+.lbl { color:var(--text-soft); flex-shrink:0; min-width:18px; }
+input {
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.09);
+  border-radius:3px; color:var(--text); font:inherit; font-size:11px;
+  padding:2px 5px; outline:none; transition:border-color .15s;
+}
+input:focus { border-color:rgba(255,255,255,.28); }
+input.w60  { width:60px; text-align:right; }
+input.w70  { width:70px; text-align:right; }
+input.w80  { width:80px; text-align:right; }
+input.ferr { border-color:rgba(255,80,80,.55); }
+.err-msg   { font-size:10px; color:#f87; display:none; word-break:break-all; }
+.sep       { color:var(--text-soft); }
+.desc      { font-size:9px; color:var(--text-muted); line-height:1.5; padding:0 2px; }
+.desc b    { color:var(--text); font-weight:normal; }
+.body-tag  { font-size:8px; color:#fff; margin-left:4px; }
+
+/* preset strip */
+.preset-lbl { font-size:9px; color:var(--text-soft); margin-top:2px; }
+.preset-strip {
+  display:grid; grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:6px 8px; padding-bottom:4px;
+}
+.p-item {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  cursor:pointer; min-width:0; opacity:.65; transition:opacity .15s, border-color .15s;
+}
+.p-item:hover { opacity:1; }
+.p-item canvas { border-radius:3px; border:1px solid rgba(255,255,255,.08); display:block; }
+.p-item:hover canvas { border-color:rgba(255,255,255,.3); }
+.p-item.p-item-selected canvas { border-color:rgba(160,180,255,.65); box-shadow:0 0 0 1px rgba(160,180,255,.35); }
+.p-item.p-item-selected { opacity:1; }
+.p-item span { font-size:8px; color:var(--text); white-space:nowrap; text-align:center; line-height:1.15; }
+.preset-params {
+  display:none; flex-direction:column; gap:6px; margin-top:6px;
+  padding:8px 10px; border-radius:4px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1);
+}
+.preset-params.visible { display:flex; }
+.preset-params-title { font-size:10px; color:var(--text); margin:0 0 2px; }
+.preset-params-row {
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  font-size:10px; color:var(--text-muted);
+}
+.preset-params-row label { color:var(--text); min-width:2.5em; flex-shrink:0; font-size:10px; }
+.preset-params-row input, .preset-params-row select {
+  width:56px; font-size:10px; padding:3px 5px;
+}
+.preset-params-row input.wide { width:100px; flex:1; min-width:72px; }
+.preset-params .apply-ps {
+  align-self:flex-start;
+  background:rgba(160,180,255,.12); border:1px solid rgba(160,180,255,.28);
+  border-radius:3px; color:var(--text); font:inherit; font-size:10px;
+  padding:4px 14px; cursor:pointer; margin-top:2px;
+}
+.preset-params .apply-ps:hover { background:rgba(160,180,255,.22); }
+
+.preset-custom { display:flex; flex-direction:column; gap:7px; margin-top:8px; }
+.preset-custom-row {
+  display:flex; align-items:center; gap:5px; flex-wrap:wrap;
+  font-size:10px; color:var(--text-muted);
+}
+.preset-custom-row .pc-lbl {
+  color:var(--text); min-width:44px; flex-shrink:0; font-size:10px;
+}
+.preset-custom-row input, .preset-custom-row select {
+  width:52px; font-size:10px; padding:2px 4px;
+}
+.preset-custom-row input.wide { width:88px; flex:1; min-width:60px; }
+.apply-pc {
+  background:rgba(160,180,255,.1); border:1px solid rgba(160,180,255,.25);
+  border-radius:3px; color:var(--text); font:inherit; font-size:9px;
+  padding:2px 10px; cursor:pointer; margin-left:auto;
+}
+.apply-pc:hover { background:rgba(160,180,255,.2); }
+
+/* bottom */
+.bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.pair-legend { display:flex; flex-direction:column; gap:5px; font-size:10px; color:var(--text-soft); flex:1; }
+.pair-row {
+  display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none;
+  padding:2px 4px; border-radius:3px; transition:background .12s;
+}
+.pair-row:hover { background:rgba(255,255,255,.04); }
+.pair-row.off { opacity:.35; }
+.pair-row.selected {
+  background:rgba(160,180,255,.1); outline:1px solid rgba(160,180,255,.28);
+  border-radius:4px;
+}
+.pair-row input { accent-color:#8af; cursor:pointer; }
+.pair-fx-panel {
+  margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,.1);
+  display:flex; flex-direction:column; gap:6px;
+}
+.pair-fx-title { font-size:10px; color:var(--text-soft); }
+.pair-fx-apply-all {
+  align-self:flex-start; font-size:9px; padding:3px 8px;
+}
+.pdot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:3px; vertical-align:middle; flex-shrink:0; }
+.ctrl-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; }
+.ctrl-row label { font-size:10px; color:var(--text); white-space:nowrap; }
+.ctrl-row input[type=range] { flex:1; min-width:80px; accent-color:#8af; }
+.export-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.hint { font-size:9px; color:var(--text-muted); }
+.batch-panel {
+  margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.1);
+  display:flex; flex-direction:column; gap:6px;
+}
+.batch-panel .batch-title { font-size:10px; color:var(--text); }
+.batch-progress { font-size:9px; color:var(--text-soft); min-height:1.2em; }
+.batch-progress progress { width:100%; height:6px; accent-color:#8af; }
+.reset-btn {
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+  border-radius:3px; color:var(--text); font:inherit; font-size:11px;
+  padding:5px 14px; cursor:pointer; flex-shrink:0;
+}
+.reset-btn:hover { background:rgba(255,255,255,.11); color:var(--text); }
+.tog     { color:var(--text-muted); border-color:rgba(255,255,255,.08); }
+.tog.on  { color:var(--text); border-color:rgba(160,180,255,.35); background:rgba(160,180,255,.07); }
+
+/* save bar */
+.save-bar {
+  display:flex; align-items:center; gap:6px;
+  margin-top:8px; padding-top:8px;
+  border-top:1px solid rgba(255,255,255,.05);
+}
+.save-bar-lbl { font-size:10px; color:var(--text); flex-shrink:0; }
+.save-bar input { flex:1; }
+.save-bar-btn {
+  background:rgba(160,180,255,.08); border:1px solid rgba(160,180,255,.2);
+  border-radius:3px; color:#aac; font:inherit; font-size:11px;
+  padding:5px 14px; cursor:pointer; flex-shrink:0; white-space:nowrap;
+}
+.save-bar-btn:hover { background:rgba(160,180,255,.17); color:#ccf; }
+
+/* saves area */
+/* global presets */
+#global-presets { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
+.gp-label { font-size:9px; color:rgba(255,200,80,.55); letter-spacing:.1em; }
+.gp-section-title {
+  text-transform:none; letter-spacing:.04em; line-height:1.35; font-size:10px;
+}
+.global-presets-section {
+  flex-shrink:0; padding:10px 12px 8px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.gp-btn {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  background:rgba(255,190,60,.06); border:1px solid rgba(255,190,60,.2);
+  border-radius:5px; color:rgba(255,210,100,.85); font:inherit; font-size:10px;
+  padding:6px 6px 5px; cursor:pointer;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.gp-btn:hover { background:rgba(255,190,60,.16); color:rgba(255,240,160,.98); border-color:rgba(255,200,80,.45); }
+.gp-btn .gp-thumb {
+  width:100%; aspect-ratio:1; border-radius:3px; display:block;
+  background:#0c0c18; object-fit:contain;
+}
+.gp-btn .gp-label-row { display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1.2; }
+.gp-btn .gp-icon { font-size:11px; line-height:1; }
+.gp-btn .gp-sub { font-size:7px; color:rgba(255,220,140,.55); letter-spacing:0; }
+
+/* saves area */
+#saves-area { display:flex; flex-direction:column; gap:6px; }
+.saves-hdr { font-size:9px; color:var(--text-soft); }
+.saves-strip { display:flex; gap:8px; flex-wrap:wrap; }
+.save-item {
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  cursor:pointer; position:relative; flex-shrink:0;
+}
+.save-item img {
+  width:112px; height:101px; object-fit:cover;
+  border-radius:4px; border:1px solid rgba(255,255,255,.1); display:block;
+  transition:border-color .15s;
+}
+.save-item:hover img { border-color:rgba(255,255,255,.45); }
+.save-item .save-name {
+  font-size:9px; color:var(--text); white-space:nowrap;
+  max-width:112px; overflow:hidden; text-overflow:ellipsis;
+}
+.save-restore {
+  position:absolute; top:0; left:0; right:0; bottom:16px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; color:rgba(255,255,255,.0); background:rgba(0,0,0,0);
+  border-radius:4px; transition:color .15s, background .15s;
+}
+.save-item:hover .save-restore {
+  color:rgba(255,255,255,.75); background:rgba(0,0,0,.42);
+}
+.save-del {
+  position:absolute; top:3px; right:3px;
+  width:17px; height:17px; border-radius:50%;
+  background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.18);
+  color:var(--text); font-size:9px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .15s; padding:0; font-family:inherit;
+}
+.save-item:hover .save-del { opacity:1; }
+.save-del:hover { background:rgba(200,50,50,.85); color:#fff; border-color:transparent; }
+.save-home {
+  position:absolute; top:3px; left:3px;
+  width:17px; height:17px; border-radius:50%;
+  background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.18);
+  color:var(--text); font-size:10px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .15s, background .15s, color .15s;
+  padding:0; font-family:inherit;
+}
+.save-item:hover .save-home { opacity:1; }
+.save-home.active { background:rgba(60,110,255,.55); color:#cdf; opacity:1; border-color:rgba(100,150,255,.5); }
+.save-home:hover { background:rgba(60,110,80,.65); color:#afa; }
+.save-home.active:hover { background:rgba(60,110,255,.75); color:#fff; }
+</style>
+</head>
+<body>
+<div id="app-shell">
+<div id="sound-prefs-modal" class="sound-prefs-modal" role="dialog" aria-modal="true" aria-labelledby="sound-prefs-title" aria-hidden="true">
+  <div class="sound-prefs-box">
+    <div id="sound-prefs-title" class="sound-prefs-title">サウンド</div>
+    <p class="sound-prefs-desc">交点の効果音を鳴らしますか？<br><small>後から「交点ペア」でペアごとに変更できます</small></p>
+    <div class="sound-prefs-actions">
+      <button type="button" id="soundPrefOff" class="reset-btn sound-pref-btn active-choice">OFF</button>
+      <button type="button" id="soundPrefOn" class="reset-btn sound-pref-btn">ON</button>
+    </div>
+  </div>
+</div>
+<h1>交点の軌跡 — LOCUS OF INTERSECTIONS</h1>
+<div id="main-row">
+  <div id="canvas-col">
+    <div id="canvas-wrap">
+      <canvas id="c"></canvas>
+      <div id="rec-indicator" class="rec-indicator" aria-hidden="true">
+        <span class="rec-dot"></span> REC <span id="rec-time">0:00</span><span id="rec-status"></span>
+      </div>
+      <span class="canvas-hint">ホイール:拡大縮小 · Shift+ドラッグ:移動 · ダブルクリック:ビューリセット</span>
+      <div id="demo-banner" aria-hidden="true">デモ動作中</div>
+      <div id="demo-countdown" aria-hidden="true"></div>
+    </div>
+  </div>
+  <aside id="side-panel">
+    <section class="panel-section global-presets-section">
+      <div class="panel-section-title gp-section-title">ジョゼフ・プラトーの残した4形態</div>
+      <div id="global-presets"></div>
+    </section>
+    <div id="panel"></div>
+  </aside>
+</div>
+<div id="bottom-bar">
+  <section class="collapsible-section" id="save-collapsible">
+    <button type="button" class="collapsible-hdr" id="saveCollapsibleHdr" aria-expanded="false">
+      <span class="chev">▶</span><span>保存</span>
+    </button>
+    <div class="collapsible-body is-collapsed" id="saveCollapsibleBody">
+      <div id="save-bar-host"></div>
+      <div id="saves-area"></div>
+    </div>
+  </section>
+  <section class="collapsible-section" id="batch-collapsible">
+    <button type="button" class="collapsible-hdr" id="batchCollapsibleHdr" aria-expanded="false">
+      <span class="chev">▶</span><span>ω 総当りバッチ</span>
+    </button>
+    <div class="collapsible-body is-collapsed" id="batchCollapsibleBody">
+      <div id="batch-panel-host"></div>
+    </div>
+  </section>
+</div>
+</div>
+<script>
+'use strict';
+
+// ─── Responsive canvas size ───────────────────────────────────────────
+const MAXW    = 880;
+const PANEL_W = 320;
+const canvas  = document.getElementById('c');
+const ctx     = canvas.getContext('2d');
+let W = 600, H = 540;
+
+const trailCv = document.createElement('canvas');
+const tc = trailCv.getContext('2d');
+
+const view = { scale: 1, panX: 0, panY: 0 };
+let speedMul = 1;
+let trailWidth = 1.5;
+let trailDurationSec = 3;
+const TRAIL_RESIDUAL = 0.04;
+let viewDirty = false;
+let encoderConfigCache = undefined;
+
+function loadTrailSettings() {
+  try {
+    const d = JSON.parse(localStorage.getItem('locus_trail'));
+    if (!d) return;
+    if (typeof d.trailWidth === 'number') trailWidth = d.trailWidth;
+    if (typeof d.trailDurationSec === 'number') trailDurationSec = d.trailDurationSec;
+  } catch (_) {}
+}
+
+function persistTrailSettings() {
+  try {
+    localStorage.setItem('locus_trail', JSON.stringify({ trailWidth, trailDurationSec }));
+  } catch (_) {}
+}
+
+function trailFadeAlpha(dt) {
+  const sec = Math.max(0.3, trailDurationSec);
+  return 1 - Math.pow(TRAIL_RESIDUAL, dt / sec);
+}
+
+function contentWidth() {
+  const narrow = window.innerWidth < 960;
+  return narrow ? window.innerWidth - 28 : Math.min(MAXW, window.innerWidth - 28 - PANEL_W - 20);
+}
+
+function applySizes() {
+  W = contentWidth();
+  H = Math.round(W * 0.9);
+  canvas.width = W;
+  canvas.height = H;
+  trailCv.width = W;
+  trailCv.height = H;
+  const panel = document.getElementById('panel');
+  const sidePanel = document.getElementById('side-panel');
+  if (sidePanel) {
+    if (window.innerWidth >= 960) sidePanel.style.width = PANEL_W + 'px';
+    else sidePanel.style.width = '';
+  }
+  if (panel) {
+    if (window.innerWidth >= 960) panel.style.width = '100%';
+    else panel.style.width = '';
+  }
+  const shell = document.getElementById('app-shell');
+  const rowW = shell ? shell.clientWidth : (window.innerWidth < 960 ? W : W + 20 + PANEL_W);
+  const savesArea = document.getElementById('saves-area');
+  if (savesArea) savesArea.style.width = '100%';
+  encoderConfigCache = undefined;
+  redrawAllTrails();
+}
+window.addEventListener('resize', () => { applySizes(); });
+
+function wx(x) { return W / 2 + (x - view.panX) * view.scale; }
+function wy(y) { return H / 2 - (y - view.panY) * view.scale; }
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - W / 2) / view.scale + view.panX,
+    y: (H / 2 - sy) / view.scale + view.panY,
+  };
+}
+function worldDeltaFromScreen(ddx, ddy) {
+  return { x: ddx / view.scale, y: -ddy / view.scale };
+}
+
+const pairTrails = {};
+const TRAIL_MAX = 5000;
+const TRAIL_MATCH = 40;
+function pairKey(i, j) { return i + '-' + j; }
+
+function clearTrails() {
+  Object.keys(pairTrails).forEach(k => delete pairTrails[k]);
+  tc.fillStyle = '#000';
+  tc.fillRect(0, 0, W, H);
+}
+
+function resetTimingAndTrails() {
+  shapes.forEach(s => { s.angle = 0; });
+  clearTrails();
+  clearSimHistory();
+}
+
+/** プリセット適用後: 角度・軌跡をリセットし全図形を停止 */
+function resetPlaybackAfterPreset() {
+  shapes.forEach(s => {
+    s.angle = 0;
+    s.paused = true;
+  });
+  clearTrails();
+  clearSimHistory();
+  seedSimHistory();
+  updatePlaybackUI();
+}
+
+// ─── Frame step (all paused) ─────────────────────────────────────────
+const SIM_FRAME_DT = 1 / 60;
+let simHistory = [];
+let simHistoryIndex = -1;
+
+function allShapesPaused() {
+  return shapes.length > 0 && shapes.every(s => s.paused);
+}
+
+function anyShapeRunning() {
+  return shapes.some(s => !s.paused);
+}
+
+function clonePairTrails() {
+  const out = {};
+  Object.keys(pairTrails).forEach(key => {
+    out[key] = {
+      tracks: pairTrails[key].tracks.map(tr => ({
+        points: tr.points.map(p => ({ x: p.x, y: p.y })),
+      })),
+    };
+  });
+  return out;
+}
+
+function restorePairTrails(data) {
+  Object.keys(pairTrails).forEach(k => delete pairTrails[k]);
+  Object.keys(data).forEach(key => {
+    pairTrails[key] = {
+      tracks: data[key].tracks.map(tr => ({
+        points: tr.points.map(p => ({ x: p.x, y: p.y })),
+      })),
+    };
+  });
+}
+
+function captureSimState() {
+  return { angles: shapes.map(s => s.angle), trails: clonePairTrails() };
+}
+
+function restoreSimState(state) {
+  shapes.forEach((s, i) => { s.angle = state.angles[i]; });
+  restorePairTrails(state.trails);
+  viewDirty = true;
+  redrawAllTrails();
+}
+
+function clearSimHistory() {
+  simHistory = [];
+  simHistoryIndex = -1;
+}
+
+function seedSimHistory() {
+  clearSimHistory();
+  simHistory.push(captureSimState());
+  simHistoryIndex = 0;
+}
+
+function updatePlaybackUI() {
+  const allPauseBtn = document.getElementById('allPauseBtn');
+  const stepBackBtn = document.getElementById('stepBackBtn');
+  const stepFwdBtn = document.getElementById('stepFwdBtn');
+  const running = anyShapeRunning();
+  const paused = allShapesPaused();
+  if (allPauseBtn) {
+    allPauseBtn.textContent = running ? '||' : '▶';
+    allPauseBtn.classList.toggle('is-pausing', running);
+    allPauseBtn.title = running ? '全図形を停止' : '全図形を再生';
+  }
+  if (stepBackBtn) stepBackBtn.disabled = !paused || simHistoryIndex <= 0;
+  if (stepFwdBtn) stepFwdBtn.disabled = !paused;
+  shapes.forEach((s, idx) => {
+    const btn = document.getElementById(`pbtn${idx}`);
+    if (!btn) return;
+    btn.textContent = s.paused ? '▶ 再開' : '⏸ 停止';
+    btn.classList.toggle('on', !s.paused);
+  });
+  if (!running) {
+    hitFxBursts.length = 0;
+    hitFxChains.length = 0;
+    fadeAllPairSounds();
+  }
+}
+
+function stepSimulationForward() {
+  if (!allShapesPaused()) return;
+  if (simHistoryIndex < 0) seedSimHistory();
+  shapes.forEach(s => { s.angle += s.speed * speedMul * SIM_FRAME_DT; });
+  recordIntersections();
+  fadeTrailLayer(SIM_FRAME_DT);
+  simHistory = simHistory.slice(0, simHistoryIndex + 1);
+  simHistory.push(captureSimState());
+  simHistoryIndex = simHistory.length - 1;
+  updatePlaybackUI();
+}
+
+function stepSimulationBack() {
+  if (!allShapesPaused() || simHistoryIndex <= 0) return;
+  simHistoryIndex -= 1;
+  restoreSimState(simHistory[simHistoryIndex]);
+  updatePlaybackUI();
+}
+
+function resetView() {
+  view.scale = 1;
+  view.panX = 0;
+  view.panY = 0;
+  viewDirty = true;
+  redrawAllTrails();
+}
+
+// ─── Formula helpers ──────────────────────────────────────────────────
+const _sp = {};
+function _star(n, k) {
+  const key = n + ',' + k;
+  if (_sp[key]) return _sp[key];
+  const v = Array.from({length:n}, (_,i)=>({
+    x: Math.cos(i*2*Math.PI/n - Math.PI/2),
+    y: Math.sin(i*2*Math.PI/n - Math.PI/2),
+  }));
+  const p = [];
+  for (let i=0,j=0; i<n; i++,j=(j+k)%n) p.push(v[j]);
+  p.push(p[0]);
+  return (_sp[key] = p);
+}
+const HELPERS = {
+  poly(n, r, t) {
+    const step = 2*Math.PI/n;
+    const mod  = ((t%step)+step)%step;
+    return r * Math.cos(Math.PI/n) / Math.cos(mod - Math.PI/n);
+  },
+  starX(n, k, r, t) {
+    const p=_star(n,k); const m=p.length-1;
+    const T=((t/(2*Math.PI))%1+1)%1, pos=T*m, s=Math.floor(pos), f=pos-s;
+    return (p[s].x+(p[Math.min(s+1,m)].x-p[s].x)*f)*r;
+  },
+  starY(n, k, r, t) {
+    const p=_star(n,k); const m=p.length-1;
+    const T=((t/(2*Math.PI))%1+1)%1, pos=T*m, s=Math.floor(pos), f=pos-s;
+    return (p[s].y+(p[Math.min(s+1,m)].y-p[s].y)*f)*r;
+  },
+};
+if (typeof math === 'undefined') {
+  document.body.innerHTML +=
+    '<p style="color:#f88;padding:24px;font:14px sans-serif;max-width:520px">' +
+    'vendor/math.min.js を読み込めません。<br>' +
+    'intersection_locus.html と vendor/ フォルダを同じ場所に置き、<br>' +
+    'ローカルサーバー（例: <code>python3 -m http.server</code>）で開いてください。</p>';
+  throw new Error('math.js not loaded');
+}
+math.import({
+  poly: HELPERS.poly,
+  starX: HELPERS.starX,
+  starY: HELPERS.starY,
+}, { override: false });
+
+function normExpr(s) {
+  return String(s).replace(/π/g, 'pi').replace(/\bpi\b/gi, 'pi');
+}
+
+/** 式の数値が半径かどうかの説明（図形設定欄用） */
+function formulaSizeHint(formula) {
+  const s = normExpr(formula).trim();
+  if (!s) return '';
+  const ci = topComma(s);
+  if (ci < 0) {
+    if (/^\d+(\.\d+)?$/.test(s)) {
+      return 'この値は<b>半径 r</b>です（直径ではありません。直径にしたいときは半分の値を入れてください）。';
+    }
+    const polyM = s.match(/^poly\s*\(\s*\d+\s*,\s*([\d.]+)/i);
+    if (polyM) return `poly の第2引数 <b>${polyM[1]}</b> は正多角形の<b>半径</b>（外接円の半径）です。`;
+    const starM = s.match(/^star[XY]\s*\(\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)/i);
+    if (starM) return `starX / starY の第3引数 <b>${starM[1]}</b> は星形の<b>半径</b>（外接円）です。`;
+    const cardM = s.match(/^\(\s*1\s*\+\s*cos\s*\(\s*t\s*\)\s*\)\s*\*\s*([\d.]+)/i);
+    if (cardM) {
+      const a = parseFloat(cardM[1]);
+      return `係数 <b>${cardM[1]}</b> はスケール（極座標で先端までの最大距離 ≈ <b>${fmtN(2 * a, 0)}</b>）です。`;
+    }
+    const roseM = s.match(/(?:^|(?:\*\s*))([\d.]+)\s*\*\s*cos\s*\(\s*\d+\s*\*\s*t\s*\)/i)
+      || s.match(/cos\s*\(\s*\d+\s*\*\s*t\s*\)\s*\*\s*([\d.]+)/i);
+    if (roseM) {
+      const amp = roseM[1];
+      return `係数 <b>${amp}</b> は極座標での<b>最大半径</b>（花弁の長さ）です。`;
+    }
+    return '極座標 <b>r(t)</b>：数値だけのときは<b>半径</b>、式のときは t の関数です。';
+  }
+  const xy = s.split(',');
+  const xs = xy[0] || '', ys = xy[1] || '';
+  const cosM = xs.match(/cos\s*\(\s*t\s*\)\s*\*\s*([\d.]+)/i);
+  const sinM = ys.match(/sin\s*\(\s*t\s*\)\s*\*\s*([\d.]+)/i);
+  if (cosM && sinM) {
+    const r1 = cosM[1], r2 = sinM[1];
+    if (Math.abs(parseFloat(r1) - parseFloat(r2)) < 1e-6) {
+      return `x,y の係数 <b>${r1}</b> は円の<b>半径</b>です。`;
+    }
+  }
+  if (/starX\s*\(/i.test(s)) {
+    const m = s.match(/starX\s*\(\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)/i);
+    if (m) return `starX / starY の第3引数 <b>${m[1]}</b> は<b>半径</b>です。`;
+  }
+  if (/poly\s*\(/i.test(s)) {
+    const m = s.match(/poly\s*\(\s*\d+\s*,\s*([\d.]+)/i);
+    if (m) return `poly の第2引数 <b>${m[1]}</b> は<b>半径</b>です。`;
+  }
+  const astM = xs.match(/pow\s*\(\s*cos\s*\(\s*t\s*\)\s*,\s*3\s*\)\s*\*\s*([\d.]+)/i);
+  if (astM) return `係数 <b>${astM[1]}</b> はアステロイド頂点までの<b>半径</b>です。`;
+  const lisM = xs.match(/cos\s*\(\s*\d+\s*\*\s*t\s*\)\s*\*\s*([\d.]+)/i);
+  if (lisM && /sin\s*\(\s*\d+\s*\*\s*t/i.test(ys)) {
+    return `各係数（例 <b>${lisM[1]}</b>）は軸方向の<b>振幅</b>（半幅）です。`;
+  }
+  if (/^t\s*$/i.test(xs.trim()) && /^0\s*$/i.test(ys.trim())) {
+    return '直線：長さは <b>t 範囲</b> で決まります（半径の概念はありません）。';
+  }
+  return '';
+}
+
+function updateFormulaHint(i) {
+  const el = document.getElementById(`fhint${i}`);
+  if (!el) return;
+  if (isParabolaShape(shapes[i])) {
+    el.innerHTML = '';
+    el.style.display = 'none';
+    return;
+  }
+  const hint = formulaSizeHint(shapes[i].formula);
+  el.innerHTML = hint;
+  el.style.display = hint ? '' : 'none';
+}
+
+function topComma(s) {
+  let d=0;
+  for (let i=0; i<s.length; i++) {
+    if (s[i]==='('||s[i]==='[') d++;
+    else if (s[i]===')'||s[i]===']') d--;
+    else if (s[i]===',' && d===0) return i;
+  }
+  return -1;
+}
+
+function parseT(s) {
+  try {
+    const v = math.evaluate(normExpr(s));
+    return typeof v === 'number' && isFinite(v) ? v : NaN;
+  } catch { return NaN; }
+}
+
+function compileCurve(formula, tMin, tMax, N) {
+  const src = normExpr(formula);
+  const ci  = topComma(src);
+  let rEval, xEval, yEval, isPolar;
+  try {
+    if (ci < 0) {
+      rEval = math.compile(src.trim());
+      isPolar = true;
+    } else {
+      xEval = math.compile(src.slice(0, ci).trim());
+      yEval = math.compile(src.slice(ci + 1).trim());
+      isPolar = false;
+    }
+  } catch (e) { throw e; }
+  const pts = [];
+  for (let i = 0; i <= N; i++) {
+    const t = tMin + (tMax - tMin) * i / N;
+    try {
+      let x, y;
+      const sc = { t };
+      if (isPolar) {
+        const r = rEval.evaluate(sc);
+        x = r * Math.cos(t);
+        y = r * Math.sin(t);
+      } else {
+        x = xEval.evaluate(sc);
+        y = yEval.evaluate(sc);
+      }
+      pts.push(isFinite(x) && isFinite(y) ? { x, y } : null);
+    } catch { pts.push(null); }
+  }
+  return { pts, isPolar };
+}
+
+// ─── Parabola (quadratic Bezier, 3 draggable control points) ───────────
+function sampleBezier3(p0, p1, p2, N) {
+  const pts = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const u = 1 - t;
+    pts.push({
+      x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+      y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+    });
+  }
+  return pts;
+}
+
+function worldToShapeLocal(s, wx, wy) {
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  const u = (wx - s.px) * ca + (wy - s.py) * sa;
+  const v = -(wx - s.px) * sa + (wy - s.py) * ca;
+  return { x: u + s.px - s.fx, y: v + s.py - s.fy };
+}
+
+function worldDeltaToLocal(s, dwx, dwy) {
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  return { x: dwx * ca + dwy * sa, y: -dwx * sa + dwy * ca };
+}
+
+function parabolaWorldPoints(s) {
+  if (!s.parabola) return null;
+  const { p0, p1, p2 } = s.parabola;
+  return {
+    p0: shapeWorldPoint(s, p0.x, p0.y),
+    p1: shapeWorldPoint(s, p1.x, p1.y),
+    p2: shapeWorldPoint(s, p2.x, p2.y),
+  };
+}
+
+function initSymmetricParabola(shape, halfWidth, vertexHeight) {
+  const w = Math.max(1, Math.abs(halfWidth));
+  const h = vertexHeight;
+  const baseY = 0;
+  shape.parabola = {
+    p0: { x: -w, y: baseY },
+    p2: { x: w, y: baseY },
+    p1: { x: 0, y: h },
+  };
+  shape.curveKind = 'parabola';
+  shape.parabolaTMin = -w;
+  shape.parabolaTMax = w;
+  shape.tMin = -w;
+  shape.tMax = w;
+  shape.tMinS = String(-w);
+  shape.tMaxS = String(w);
+  shape.N = 250;
+  shape.formula = `t, ${h}*(1-(t/${w})^2)`;
+  shape.isPolar = false;
+  refreshShapeCurve(shape, shape.N);
+}
+
+function parabolaHalfWidth(shape) {
+  if (!shape.parabola) return 12;
+  return Math.max(1, Math.abs(shape.parabola.p2.x - shape.parabola.p0.x) / 2);
+}
+
+function syncSymmetricParabola(shape) {
+  if (!shape.parabola) return;
+  const cx = (shape.parabola.p0.x + shape.parabola.p2.x) / 2;
+  const baseY = (shape.parabola.p0.y + shape.parabola.p2.y) / 2;
+  const w = parabolaHalfWidth(shape);
+  const h = shape.parabola.p1.y;
+  shape.parabola.p0 = { x: cx - w, y: baseY };
+  shape.parabola.p2 = { x: cx + w, y: baseY };
+  shape.parabola.p1 = { x: cx, y: h };
+  shape.parabolaTMin = -w;
+  shape.parabolaTMax = w;
+  shape.tMin = -w;
+  shape.tMax = w;
+  shape.tMinS = String(-w);
+  shape.tMaxS = String(w);
+  shape.formula = `t, ${h}*(1-(t/${w})^2)`;
+}
+
+function initParabolaBezier(shape, xExpr, yExpr, tMin, tMax) {
+  const xE = math.compile(normExpr(String(xExpr).trim()));
+  const yE = math.compile(normExpr(String(yExpr).trim()));
+  const at = t => {
+    const sc = { t };
+    return { x: xE.evaluate(sc), y: yE.evaluate(sc) };
+  };
+  const p0 = at(tMin);
+  const p2 = at(tMax);
+  const tm = (tMin + tMax) / 2;
+  const mid = at(tm);
+  shape.parabola = {
+    p0: { x: p0.x, y: p0.y },
+    p2: { x: p2.x, y: p2.y },
+    p1: {
+      x: 2 * mid.x - 0.5 * (p0.x + p2.x),
+      y: 2 * mid.y - 0.5 * (p0.y + p2.y),
+    },
+  };
+  shape.curveKind = 'parabola';
+  shape.parabolaTMin = tMin;
+  shape.parabolaTMax = tMax;
+}
+
+function refreshShapeCurve(shape, N) {
+  N = N || shape.N || 250;
+  if (shape.curveKind === 'parabola' && shape.parabola) {
+    shape.pts = sampleBezier3(shape.parabola.p0, shape.parabola.p1, shape.parabola.p2, N);
+    shape.isPolar = false;
+    shape.error = null;
+    shape.tMin = 0;
+    shape.tMax = 1;
+    return true;
+  }
+  return false;
+}
+
+function isParabolaShape(s) {
+  return s.curveKind === 'parabola' && s.parabola;
+}
+
+// ─── Segment intersection ─────────────────────────────────────────────
+function segX(p1,p2,p3,p4) {
+  const dx1=p2.x-p1.x, dy1=p2.y-p1.y, dx2=p4.x-p3.x, dy2=p4.y-p3.y;
+  const d=dx1*dy2-dy1*dx2;
+  if (Math.abs(d)<1e-9) return null;
+  const ex=p3.x-p1.x, ey=p3.y-p1.y;
+  const t=(ex*dy2-ey*dx2)/d, u=(ex*dy1-ey*dx1)/d;
+  if (t>=0&&t<=1&&u>=0&&u<=1) return {x:p1.x+t*dx1, y:p1.y+t*dy1};
+  return null;
+}
+
+// ─── Draw pts to canvas (auto-scaled) ────────────────────────────────
+function drawPtsTo(cv, pts, stroke, bg, lw) {
+  const c=cv.getContext('2d');
+  c.fillStyle=bg||'#0c0c18'; c.fillRect(0,0,cv.width,cv.height);
+  if (!pts) return;
+  const v=pts.filter(Boolean);
+  if (v.length<2) return;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  v.forEach(p=>{x0=Math.min(x0,p.x);x1=Math.max(x1,p.x);y0=Math.min(y0,p.y);y1=Math.max(y1,p.y);});
+  const pad=cv.width*.1, cw=cv.width-2*pad, ch=cv.height-2*pad;
+  const s=Math.min(cw/Math.max(x1-x0,.001), ch/Math.max(y1-y0,.001));
+  const mx=(x0+x1)/2, my=(y0+y1)/2, ox=cv.width/2, oy=cv.height/2;
+  c.strokeStyle=stroke; c.lineWidth=lw||1; c.lineCap='round';
+  c.beginPath(); let pen=false;
+  pts.forEach(p=>{
+    if(p){const px=ox+(p.x-mx)*s,py=oy+(p.y-my)*s;
+      if(!pen){c.moveTo(px,py);pen=true;}else c.lineTo(px,py);}
+    else pen=false;
+  });
+  c.stroke();
+}
+
+// ─── Shapes (mutable) ────────────────────────────────────────────────
+const SHAPE_HUES = [15, 185, 270, 50, 140, 310, 90, 220, 355, 170];
+
+const DEFS = [
+  { formula:'cos(3*t)*150',              tMinS:'0', tMaxS:'pi',    N:250, fx:-80, fy: 40, px: 30, py: 30, speed: 0.48, hue:15  },
+  { formula:'(1.3+cos(t))*85',           tMinS:'0', tMaxS:'2*pi', N:300, fx: 80, fy:-20, px:-30, py:-30, speed:-0.30, hue:185 },
+  { formula:'cos(3*t)*120, sin(2*t)*120',tMinS:'0', tMaxS:'2*pi', N:300, fx:  0, fy: 90, px:  0, py: 0,  speed: 0.65, hue:270 },
+];
+
+function makeShape(d) {
+  const tMin=parseT(d.tMinS), tMax=parseT(d.tMaxS);
+  const curveKind = d.curveKind || 'formula';
+  let pts=null,isPolar=true,error=null;
+  const shape = {
+    ...d, tMin, tMax,
+    curveKind,
+    parabola: d.parabola ? {
+      p0: { ...d.parabola.p0 },
+      p1: { ...d.parabola.p1 },
+      p2: { ...d.parabola.p2 },
+    } : null,
+    angle: (d.angle !== undefined) ? d.angle : Math.random() * Math.PI * 2,
+    visible: (d.visible !== undefined) ? d.visible : true,
+    paused: (d.paused !== undefined) ? d.paused : false,
+    dupCount: (d.dupCount !== undefined) ? Math.max(1, Math.min(18, d.dupCount | 0)) : 1,
+    thumbCv: null,
+  };
+  try {
+    if (!refreshShapeCurve(shape, d.N)) {
+      ({ pts, isPolar } = compileCurve(d.formula, tMin, tMax, d.N));
+      shape.pts = pts;
+      shape.isPolar = isPolar;
+    }
+  } catch (e) { error = e.message; }
+  shape.pts = shape.pts || pts;
+  shape.isPolar = shape.isPolar !== undefined ? shape.isPolar : isPolar;
+  shape.error = error;
+  return shape;
+}
+
+let shapes = [];
+
+// ─── Pairs (dynamic) ─────────────────────────────────────────────────
+const PAIR_HUES = [52, 335, 130, 200, 280, 15, 95, 260, 170, 40];
+
+const pairEnabledCache = {};
+const pairFxCache = {};
+let selectedPairFxKey = null;
+
+const PAIR_FX_DEFAULTS = {
+  visualEnabled: true,
+  soundEnabled: false,
+  visualStyle: 0,
+  soundStyle: 0,
+};
+
+function getPairFx(key) {
+  const c = pairFxCache[key];
+  if (!c) return { ...PAIR_FX_DEFAULTS };
+  return {
+    visualEnabled: c.visualEnabled ?? PAIR_FX_DEFAULTS.visualEnabled,
+    soundEnabled: c.soundEnabled ?? PAIR_FX_DEFAULTS.soundEnabled,
+    visualStyle: clampFxStyle(c.visualStyle ?? PAIR_FX_DEFAULTS.visualStyle, 9),
+    soundStyle: clampFxStyle(c.soundStyle ?? PAIR_FX_DEFAULTS.soundStyle, 9),
+  };
+}
+
+function setPairFx(key, patch) {
+  if (!key) return;
+  pairFxCache[key] = { ...getPairFx(key), ...patch };
+}
+
+function setAllPairsSoundEnabled(on) {
+  intersectionSoundEnabled = !!on;
+  syncPairFxDefaultsFromGlobals();
+  PAIRS.forEach(p => setPairFx(pairKey(p.i, p.j), { soundEnabled: !!on }));
+  if (on) unlockHitAudio();
+}
+
+let pairFxEditorRefresh = null;
+
+function prunePairFxCache() {
+  const max = shapes.length;
+  Object.keys(pairFxCache).forEach(k => {
+    const [i, j] = k.split('-').map(Number);
+    if (i >= max || j >= max || i < 0 || j < 0) delete pairFxCache[k];
+  });
+  if (selectedPairFxKey) {
+    const [i, j] = selectedPairFxKey.split('-').map(Number);
+    if (i >= max || j >= max || i < 0 || j < 0) {
+      selectedPairFxKey = max >= 2 ? pairKey(0, 1) : null;
+    }
+  }
+}
+
+function computePairs() {
+  const pairs = [];
+  let idx = 0;
+  for (let i = 0; i < shapes.length - 1; i++) {
+    for (let j = i + 1; j < shapes.length; j++) {
+      const k = pairKey(i, j);
+      pairs.push({
+        i, j,
+        h: PAIR_HUES[idx++ % PAIR_HUES.length],
+        enabled: pairEnabledCache[k] !== undefined ? pairEnabledCache[k] : true,
+      });
+    }
+  }
+  prunePairFxCache();
+  return pairs;
+}
+
+let PAIRS = [];
+applySizes();
+tc.fillStyle = '#000';
+tc.fillRect(0, 0, W, H);
+
+// ─── Add / Delete shapes ─────────────────────────────────────────────
+function addShape() {
+  shapes.forEach(s => { s.paused = true; });
+  resetTimingAndTrails();
+  const hue = SHAPE_HUES[shapes.length % SHAPE_HUES.length];
+  const d = { formula:'155', tMinS:'0', tMaxS:'2*pi', N:120,
+               fx:0, fy:0, px:0, py:0, speed:0.35, hue, angle:0, paused:true };
+  shapes.push(makeShape(d));
+  activeTabIdx = shapes.length - 1;
+  PAIRS = computePairs();
+  buildUI();
+}
+
+function deleteShape(i) {
+  if(shapes.length <= 1) { return; } // minimum 1 shape
+  shapes.splice(i, 1);
+  activeTabIdx = Math.min(activeTabIdx, shapes.length-1);
+  resetTimingAndTrails();
+  PAIRS = computePairs();
+  buildUI();
+}
+
+function dupCountOf(s) {
+  return Math.max(1, Math.min(18, s.dupCount | 0) || 1);
+}
+
+function orbitRadiusFromPivot(s) {
+  const dr = Math.hypot(s.fx - s.px, s.fy - s.py);
+  if (dr > 1e-6) return dr;
+  if (!s.pts || !s.pts.length) return 80;
+  let maxR = 0;
+  for (const p of s.pts) {
+    if (p) maxR = Math.max(maxR, Math.hypot(p.x, p.y));
+  }
+  return maxR || 80;
+}
+
+/** 回転軸周りの複製配置（k=0 が本体 fx,fy） */
+function getDupCenters(s) {
+  const count = dupCountOf(s);
+  if (count === 1) return [{ fx: s.fx, fy: s.fy, primary: true }];
+  const { px, py } = s;
+  const r = orbitRadiusFromPivot(s);
+  const baseAz = Math.atan2(s.fy - py, s.fx - px);
+  const step = (2 * Math.PI) / count;
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    const az = baseAz + k * step;
+    out.push({
+      fx: px + r * Math.cos(az),
+      fy: py + r * Math.sin(az),
+      primary: k === 0,
+    });
+  }
+  return out;
+}
+
+/** 旧仕様（複製ごとにタブ）を 1 タブ + dupCount に統合 */
+function collapseLegacyDupTabs() {
+  const groups = new Map();
+  shapes.forEach((s, idx) => {
+    if (!s.dupGroup) return;
+    if (!groups.has(s.dupGroup)) groups.set(s.dupGroup, []);
+    groups.get(s.dupGroup).push({ s, idx });
+  });
+  if (!groups.size) return;
+  const remove = new Set();
+  groups.forEach(list => {
+    list.sort((a, b) => (a.s.dupIndex | 0) - (b.s.dupIndex | 0));
+    const primary = list[0].s;
+    primary.dupCount = list.length;
+    delete primary.dupGroup;
+    delete primary.dupIndex;
+    for (let k = 1; k < list.length; k++) remove.add(list[k].idx);
+  });
+  [...remove].sort((a, b) => b - a).forEach(i => shapes.splice(i, 1));
+}
+
+function applyDuplicate(tabIdx, count) {
+  const s = shapes[tabIdx];
+  if (!s || s.error) return;
+  s.dupCount = Math.max(1, Math.min(18, count | 0));
+  resetTimingAndTrails();
+}
+
+// ─── Presets ──────────────────────────────────────────────────────────
+function starSkipDefault(n) {
+  n = Math.max(5, n | 0);
+  if (n % 2 === 0) return Math.max(2, n / 2 - 1);
+  return 2;
+}
+
+function psId(shapeIdx, specId, fieldId) {
+  return `ps${shapeIdx}_${specId}_${fieldId}`;
+}
+
+function readPresetFields(shapeIdx, spec) {
+  const out = {};
+  (spec.fields || []).forEach(f => {
+    const el = document.getElementById(psId(shapeIdx, spec.id, f.id));
+    out[f.id] = el ? el.value : String(f.def ?? '');
+  });
+  return out;
+}
+
+function parabolaPresetDefaults(shape) {
+  if (shape.parabola) {
+    return {
+      w: String(Math.round(parabolaHalfWidth(shape))),
+      h: String(Math.round(shape.parabola.p1.y)),
+    };
+  }
+  return { w: '12', h: '5' };
+}
+
+const PRESET_CATALOG = [
+  { type: 'freehand', id: 'freehand', name: '自由記述', stroke: 'rgba(180,195,255,.9)' },
+  { type: 'simple', name: '直線', formula: 't, 0', tMinS: '-160', tMaxS: '160', N: 2, stroke: 'rgba(220,225,255,.92)' },
+  { type: 'simple', name: '円', formula: '155', tMinS: '0', tMaxS: '2*pi', N: 120, stroke: 'rgba(100,210,255,.92)' },
+  { type: 'simple', name: 'アステロイド', formula: 'pow(cos(t),3)*155, pow(sin(t),3)*155', tMinS: '0', tMaxS: '2*pi', N: 200, stroke: 'rgba(255,185,110,.92)' },
+  {
+    type: 'config', id: 'star', name: '星', stroke: 'rgba(255,220,110,.95)',
+    fields: [
+      { id: 'n', label: '角', kind: 'number', def: 5, min: 5, max: 16 },
+      { id: 'r', label: 'R', kind: 'number', def: 155 },
+    ],
+    resolve(v) {
+      const n = Math.max(5, Math.min(16, parseInt(v.n, 10) || 5));
+      const skip = starSkipDefault(n);
+      const r = parseFloat(v.r) || 155;
+      return {
+        formula: `starX(${n},${skip},${r},t), starY(${n},${skip},${r},t)`,
+        tMinS: '0', tMaxS: '2*pi', N: Math.max(30, n * 6),
+      };
+    },
+  },
+  {
+    type: 'config', id: 'poly', name: '多角形', stroke: 'rgba(130,255,175,.92)',
+    fields: [
+      { id: 'n', label: '辺', kind: 'number', def: 5, min: 3, max: 24 },
+      { id: 'r', label: 'R', kind: 'number', def: 155 },
+    ],
+    resolve(v) {
+      const n = Math.max(3, Math.min(24, parseInt(v.n, 10) || 5));
+      const r = parseFloat(v.r) || 155;
+      return { formula: `poly(${n},${r},t)`, tMinS: '0', tMaxS: '2*pi', N: Math.max(24, n * 12) };
+    },
+  },
+  {
+    type: 'config', id: 'parabola', name: '放物線', stroke: 'rgba(255,140,220,.92)', mode: 'parabola',
+    fields: [
+      { id: 'w', label: '幅', kind: 'number', def: 12, min: 2, max: 80 },
+      { id: 'h', label: '高さ', kind: 'number', def: 5, min: -80, max: 80 },
+    ],
+    resolve(v) {
+      const w = Math.max(2, parseFloat(v.w) || 12);
+      const h = parseFloat(v.h) || 5;
+      return { w, h, N: 250 };
+    },
+  },
+  {
+    type: 'config', id: 'rose', name: 'ローズ', stroke: 'rgba(255,120,180,.92)',
+    fields: [
+      { id: 'mode', kind: 'select', def: 'cos', options: [['cos', 'cos'], ['sin', 'sin']] },
+      { id: 'k', label: 'k', kind: 'number', def: 3, min: 1, max: 24 },
+      { id: 'a', label: 'A', kind: 'number', def: 160 },
+      { id: 'tmax', label: 't', kind: 'text', def: 'pi' },
+    ],
+    resolve(v) {
+      const mode = v.mode === 'sin' ? 'sin' : 'cos';
+      const k = Math.max(1, Math.min(24, parseInt(v.k, 10) || 3));
+      const a = parseFloat(v.a) || 160;
+      const tMaxS = String(v.tmax || 'pi').trim();
+      const formula = mode === 'sin' ? `${a}*sin(${k}*t)` : `${a}*cos(${k}*t)`;
+      return { formula, tMinS: '0', tMaxS, N: Math.max(80, k * 90) };
+    },
+  },
+];
+
+const PARABOLA_THUMB_W = 14;
+const PARABOLA_THUMB_H = 10;
+
+function parabolaThumbPoints(w, h, N) {
+  const half = Math.max(2, w);
+  return sampleBezier3(
+    { x: -half, y: 0 },
+    { x: 0, y: h },
+    { x: half, y: 0 },
+    N || 72,
+  );
+}
+
+function buildParabolaPresetThumb(stroke) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 38;
+  const pts = parabolaThumbPoints(PARABOLA_THUMB_W, PARABOLA_THUMB_H, 72);
+  drawPtsTo(cv, pts, stroke || 'rgba(255,140,220,.92)', '#0c0c18', 2.2);
+  return cv;
+}
+
+function presetResolvedCurve(spec, fieldValues) {
+  if (spec.mode === 'parabola') {
+    const v = spec.resolve(fieldValues);
+    const w = Math.max(2, parseFloat(v.w) || PARABOLA_THUMB_W);
+    const h = parseFloat(v.h) || PARABOLA_THUMB_H;
+    return { pts: parabolaThumbPoints(w, h, 80), isPolar: false };
+  }
+  const { formula, tMinS, tMaxS, N } = spec.resolve(fieldValues);
+  return compileCurve(formula, parseT(tMinS), parseT(tMaxS), N);
+}
+
+function buildPresetThumb(spec, fieldValues, stroke) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 38;
+  try {
+    const res = presetResolvedCurve(spec, fieldValues);
+    const pts = res?.pts;
+    if (pts) drawPtsTo(cv, pts, stroke || 'rgba(200,205,255,.85)', '#0c0c18', 1.2);
+    else {
+      const c = cv.getContext('2d');
+      c.fillStyle = '#0c0c18';
+      c.fillRect(0, 0, 38, 38);
+    }
+  } catch {
+    const c = cv.getContext('2d');
+    c.fillStyle = '#0c0c18';
+    c.fillRect(0, 0, 38, 38);
+  }
+  return cv;
+}
+
+function defaultPresetFieldValues(spec, shape) {
+  const vals = {};
+  (spec.fields || []).forEach(f => { vals[f.id] = String(f.def ?? ''); });
+  if (spec.id === 'parabola' && shape) {
+    const pd = parabolaPresetDefaults(shape);
+    vals.w = pd.w;
+    vals.h = pd.h;
+  }
+  return vals;
+}
+
+function buildFreehandPresetThumb() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 38;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0c0c18';
+  c.fillRect(0, 0, 38, 38);
+  c.strokeStyle = 'rgba(130,155,255,.5)';
+  c.lineWidth = 1;
+  c.setLineDash([4, 3]);
+  c.strokeRect(5, 5, 28, 28);
+  c.setLineDash([]);
+  c.fillStyle = 'rgba(215,225,255,.95)';
+  c.font = 'bold 11px Menlo,monospace';
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText('式', 19, 20);
+  return cv;
+}
+
+PRESET_CATALOG.forEach(spec => {
+  if (spec.type === 'freehand') {
+    spec._cv = buildFreehandPresetThumb();
+    return;
+  }
+  if (spec.type === 'simple') {
+    spec._cv = buildPresetThumb(
+      { resolve: () => ({ formula: spec.formula, tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: spec.N }) },
+      {},
+      spec.stroke,
+    );
+  } else if (spec.mode === 'parabola') {
+    spec._cv = buildParabolaPresetThumb(spec.stroke);
+  } else {
+    spec._cv = buildPresetThumb(spec, defaultPresetFieldValues(spec, null), spec.stroke);
+  }
+});
+
+function rndInt(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+function rndFloat(min, max) {
+  return min + Math.random() * (max - min);
+}
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomShapeLayout() {
+  const spread = rndInt(120, 220);
+  const sign = () => (Math.random() < 0.5 ? -1 : 1);
+  let speed = rndFloat(-2.4, 2.4);
+  if (Math.abs(speed) < 0.12) speed = sign() * rndFloat(0.3, 1.4);
+  return {
+    fx: sign() * rndInt(30, spread),
+    fy: sign() * rndInt(30, spread),
+    px: sign() * rndInt(10, spread),
+    py: sign() * rndInt(10, spread),
+    speed,
+    angle: Math.random() * Math.PI * 2,
+    paused: false,
+    visible: true,
+    dupCount: 1,
+  };
+}
+
+function randomPresetFieldValues(spec) {
+  const vals = {};
+  (spec.fields || []).forEach(f => {
+    if (f.kind === 'select') {
+      const opts = f.options || [['cos', 'cos']];
+      vals[f.id] = pickRandom(opts)[0];
+    } else if (f.kind === 'number') {
+      let min = f.min != null ? f.min : 1;
+      let max = f.max != null ? f.max : 160;
+      if (f.id === 'r' || f.id === 'a') { min = 85; max = 175; }
+      vals[f.id] = String(rndInt(min, max));
+    } else if (f.id === 'tmin') {
+      vals[f.id] = String(-rndInt(5, 18));
+    } else if (f.id === 'tmax') {
+      vals[f.id] = String(rndInt(5, 18));
+    } else if (f.id === 'x') {
+      vals[f.id] = 't';
+    } else if (f.id === 'y') {
+      vals[f.id] = pickRandom(['5-t^2', 't^2-5', 'sin(t)*6', 'cos(t)*5', '-0.2*t^2+6', 't*0.4']);
+    } else if (spec.id === 'parabola' && f.id === 'w') {
+      vals.w = String(rndInt(8, 20));
+    } else if (spec.id === 'parabola' && f.id === 'h') {
+      vals.h = String(rndInt(4, 14) * (Math.random() < 0.5 ? 1 : -1));
+    } else {
+      vals[f.id] = String(f.def ?? '');
+    }
+  });
+  if (spec.id === 'rose') {
+    vals.tmax = Math.random() < 0.5 ? 'pi' : '2*pi';
+  }
+  return vals;
+}
+
+function randomSimplePresetCurve(spec) {
+  const r = rndInt(90, 175);
+  if (spec.name === '円') {
+    return { formula: String(r), tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: rndInt(90, 150) };
+  }
+  if (spec.name === '直線') {
+    const half = rndInt(100, 200);
+    return { formula: spec.formula, tMinS: String(-half), tMaxS: String(half), N: 2 };
+  }
+  if (spec.name === 'アステロイド') {
+    return {
+      formula: `pow(cos(t),3)*${r}, pow(sin(t),3)*${r}`,
+      tMinS: spec.tMinS,
+      tMaxS: spec.tMaxS,
+      N: rndInt(150, 220),
+    };
+  }
+  return { formula: spec.formula, tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: spec.N };
+}
+
+function presetPoolForRandom() {
+  return PRESET_CATALOG.filter(s => s.type !== 'freehand');
+}
+
+function makeShapeFromPresetSpec(spec, hue) {
+  if (spec.type === 'freehand') return null;
+  const layout = randomShapeLayout();
+  layout.hue = hue;
+  if (spec.type === 'simple') {
+    Object.assign(layout, randomSimplePresetCurve(spec), { curveKind: 'formula', parabola: null });
+    return makeShape(layout);
+  }
+  const vals = randomPresetFieldValues(spec);
+  if (spec.mode === 'parabola') {
+    const v = spec.resolve(vals);
+    const shape = makeShape({ ...layout, curveKind: 'parabola', parabola: null });
+    try {
+      initSymmetricParabola(shape, v.w, v.h);
+      shape.error = null;
+    } catch (e) {
+      shape.error = e.message;
+    }
+    return shape;
+  }
+  const { formula, tMinS, tMaxS, N } = spec.resolve(vals);
+  Object.assign(layout, { formula, tMinS, tMaxS, N, curveKind: 'formula', parabola: null });
+  return makeShape(layout);
+}
+
+function buildRandomInitialShapes(count) {
+  const pool = presetPoolForRandom().slice();
+  const specs = [];
+  while (specs.length < count && pool.length) {
+    const i = rndInt(0, pool.length - 1);
+    specs.push(pool.splice(i, 1)[0]);
+  }
+  const fallback = presetPoolForRandom();
+  while (specs.length < count) specs.push(pickRandom(fallback));
+  return specs.map((spec, i) => makeShapeFromPresetSpec(spec, SHAPE_HUES[i % SHAPE_HUES.length]));
+}
+
+function applyInitialShapes() {
+  shapes.length = 0;
+  const initSave = SAVES.find(sv => sv.isInitial);
+  if (initSave && initSave.snap && initSave.snap.length) {
+    initSave.snap.forEach(d => shapes.push(makeShape(d)));
+  } else {
+    buildRandomInitialShapes(2).forEach(s => shapes.push(s));
+  }
+  collapseLegacyDupTabs();
+}
+
+function applyPresetConfig(shapeIdx, spec, applyFormula) {
+  if (spec.type === 'simple') {
+    applyFormula(spec.formula, spec.tMinS, spec.tMaxS, spec.N);
+  } else {
+    const vals = readPresetFields(shapeIdx, spec);
+    if (spec.mode === 'parabola') {
+      applyParabolaFromPanel(shapeIdx, vals);
+    } else {
+      const { formula, tMinS, tMaxS, N } = spec.resolve(vals);
+      applyFormula(formula, tMinS, tMaxS, N);
+    }
+  }
+  resetPlaybackAfterPreset();
+}
+
+function applyParabolaFromPanel(i, vals) {
+  const shape = shapes[i];
+  if (!shape) return;
+  const v = vals || readPresetFields(i, PRESET_CATALOG.find(s => s.id === 'parabola'));
+  const w = Math.max(2, parseFloat(v.w) || 12);
+  const h = parseFloat(v.h) || 5;
+  try {
+    initSymmetricParabola(shape, w, h);
+    shape.error = null;
+    const fInp = document.getElementById(`f${i}`);
+    const errDiv = document.getElementById(`err${i}`);
+    if (fInp) { fInp.value = shape.formula; fInp.classList.remove('ferr'); }
+    if (errDiv) errDiv.style.display = 'none';
+    const ftag = document.getElementById(`ftag${i}`);
+    if (ftag) ftag.textContent = 'parabola';
+    updateShapeThumb(i);
+    updateFormulaHint(i);
+  } catch (e) {
+    shape.error = e.message;
+    const errDiv = document.getElementById(`err${i}`);
+    if (errDiv) { errDiv.textContent = e.message; errDiv.style.display = ''; }
+  }
+}
+
+function clearPresetSelection(shapeIdx) {
+  const strip = document.getElementById(`ps${shapeIdx}`);
+  if (strip) strip.querySelectorAll('.p-item-selected').forEach(el => el.classList.remove('p-item-selected'));
+  const panel = document.getElementById(`psParams${shapeIdx}`);
+  if (panel) {
+    panel.classList.remove('visible');
+    panel.innerHTML = '';
+  }
+}
+
+function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
+  const panel = document.getElementById(`psParams${shapeIdx}`);
+  if (!panel) return;
+  panel.innerHTML = '';
+  panel.classList.add('visible');
+
+  const title = document.createElement('div');
+  title.className = 'preset-params-title';
+  title.textContent = `${spec.name} の設定`;
+  panel.appendChild(title);
+
+  const fieldVals = defaultPresetFieldValues(spec, shape);
+  const runApply = () => applyPresetConfig(shapeIdx, spec, applyFormula);
+
+  spec.fields.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'preset-params-row';
+    if (f.label) {
+      const lab = document.createElement('label');
+      lab.textContent = f.label;
+      row.appendChild(lab);
+    }
+    let el;
+    if (f.kind === 'select') {
+      el = document.createElement('select');
+      el.id = psId(shapeIdx, spec.id, f.id);
+      (f.options || []).forEach(([val, text]) => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = text;
+        if (val === (fieldVals[f.id] ?? f.def)) opt.selected = true;
+        el.appendChild(opt);
+      });
+    } else {
+      el = document.createElement('input');
+      el.id = psId(shapeIdx, spec.id, f.id);
+      el.type = f.kind === 'number' ? 'number' : 'text';
+      el.value = fieldVals[f.id] ?? String(f.def ?? '');
+      if (f.min != null) el.min = String(f.min);
+      if (f.max != null) el.max = String(f.max);
+      if (f.wide) el.className = 'wide';
+    }
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); runApply(); }
+    });
+    row.appendChild(el);
+    panel.appendChild(row);
+  });
+
+  const applyBtn = document.createElement('button');
+  applyBtn.type = 'button';
+  applyBtn.className = 'apply-ps';
+  applyBtn.textContent = '適用';
+  applyBtn.addEventListener('click', runApply);
+  panel.appendChild(applyBtn);
+}
+
+function selectConfigPreset(strip, shapeIdx, spec, shape, applyFormula) {
+  strip.querySelectorAll('.p-item').forEach(el => {
+    el.classList.toggle('p-item-selected', el.dataset.presetId === spec.id);
+  });
+  buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula);
+}
+
+function buildPresetStripForShape(strip, shapeIdx, shape, applyFormula, onFreehand) {
+  PRESET_CATALOG.forEach(spec => {
+    const item = document.createElement('div');
+    item.className = 'p-item';
+    if (spec.type === 'config') item.dataset.presetId = spec.id;
+
+    const thumbCv = document.createElement('canvas');
+    thumbCv.width = thumbCv.height = 38;
+    thumbCv.getContext('2d').drawImage(spec._cv, 0, 0);
+    item.appendChild(thumbCv);
+
+    const lbl = document.createElement('span');
+    lbl.textContent = spec.name;
+    item.appendChild(lbl);
+
+    if (spec.type === 'freehand') {
+      item.addEventListener('click', () => {
+        clearPresetSelection(shapeIdx);
+        if (onFreehand) onFreehand(shapeIdx);
+      });
+      strip.appendChild(item);
+      return;
+    }
+
+    if (spec.type === 'simple') {
+      item.addEventListener('click', () => {
+        clearPresetSelection(shapeIdx);
+        applyPresetConfig(shapeIdx, spec, applyFormula);
+      });
+    } else {
+      item.addEventListener('click', () => selectConfigPreset(strip, shapeIdx, spec, shape, applyFormula));
+    }
+    strip.appendChild(item);
+  });
+}
+
+function updateShapeThumb(i) {
+  const s=shapes[i]; if(!s.thumbCv) return;
+  if(s.pts) drawPtsTo(s.thumbCv, s.pts, `hsl(${s.hue},80%,60%)`, '#0b0b1a', 1.5);
+  else { const c=s.thumbCv.getContext('2d'); c.fillStyle='#0b0b1a'; c.fillRect(0,0,s.thumbCv.width,s.thumbCv.height); }
+}
+
+function makePresetCanvas(pr) {
+  const cv = document.createElement('canvas'); cv.width=cv.height=38;
+  cv.getContext('2d').drawImage(pr._cv, 0, 0);
+  return cv;
+}
+
+// ─── Trail (world coords, line segments per pair) ─────────────────────
+function redrawAllTrails() {
+  tc.fillStyle = '#000';
+  tc.fillRect(0, 0, W, H);
+  if (!PAIRS || !PAIRS.length) return;
+  PAIRS.forEach(({ i, j, h, enabled }) => {
+    if (!enabled) return;
+    const st = pairTrails[pairKey(i, j)];
+    if (!st) return;
+    tc.strokeStyle = `hsla(${h}, 82%, 62%, 0.88)`;
+    tc.lineWidth = trailWidth;
+    tc.lineCap = 'round';
+    tc.lineJoin = 'round';
+    st.tracks.forEach(tr => {
+      if (tr.points.length < 2) return;
+      tc.beginPath();
+      let pen = false;
+      tr.points.forEach(p => {
+        const sx = wx(p.x), sy = wy(p.y);
+        if (!pen) { tc.moveTo(sx, sy); pen = true; }
+        else tc.lineTo(sx, sy);
+      });
+      tc.stroke();
+    });
+  });
+}
+
+function appendTrail(key, hue, worldPt, drawToCanvas = true) {
+  if (!pairTrails[key]) pairTrails[key] = { tracks: [] };
+  const st = pairTrails[key];
+  let best = -1, bestD = TRAIL_MATCH / view.scale;
+  st.tracks.forEach((tr, ti) => {
+    const lp = tr.points[tr.points.length - 1];
+    const d = Math.hypot(lp.x - worldPt.x, lp.y - worldPt.y);
+    if (d < bestD) { bestD = d; best = ti; }
+  });
+  let prev = null;
+  if (best >= 0) {
+    const tr = st.tracks[best];
+    prev = tr.points[tr.points.length - 1];
+    tr.points.push(worldPt);
+    if (tr.points.length > TRAIL_MAX) tr.points.shift();
+  } else {
+    st.tracks.push({ points: [worldPt] });
+    if (st.tracks.length > 12) st.tracks.shift();
+    return;
+  }
+  if (drawToCanvas && prev) {
+    tc.strokeStyle = `hsla(${hue}, 82%, 62%, 0.88)`;
+    tc.lineWidth = trailWidth;
+    tc.lineCap = 'round';
+    tc.beginPath();
+    tc.moveTo(wx(prev.x), wy(prev.y));
+    tc.lineTo(wx(worldPt.x), wy(worldPt.y));
+    tc.stroke();
+  }
+}
+
+let batchActive = false;
+let batchCancel = false;
+let batchNoFade = false;
+
+function fadeTrailLayer(dt) {
+  if (batchNoFade) return;
+  const a = Math.min(0.55, trailFadeAlpha(dt));
+  tc.fillStyle = `rgba(0,0,0,${a})`;
+  tc.fillRect(0, 0, W, H);
+}
+
+// ─── Grid & axes ─────────────────────────────────────────────────────
+let showGrid = true;
+let showAxes = true;
+/** 新規ペアの初期値（設定JSONの後方互換にも使用） */
+let intersectionVisualEnabled = true;
+let intersectionSoundEnabled = false;
+let intersectionVisualStyle = 0;
+let intersectionSoundStyle = 0;
+
+function syncPairFxDefaultsFromGlobals() {
+  PAIR_FX_DEFAULTS.visualEnabled = intersectionVisualEnabled;
+  PAIR_FX_DEFAULTS.soundEnabled = intersectionSoundEnabled;
+  PAIR_FX_DEFAULTS.visualStyle = intersectionVisualStyle;
+  PAIR_FX_DEFAULTS.soundStyle = intersectionSoundStyle;
+}
+syncPairFxDefaultsFromGlobals();
+
+const VISUAL_FX_STYLES = [
+  { id: 0, name: '波紋', desc: '広がるリングと中心の光' },
+  { id: 1, name: '十字', desc: '回転する十字のフラッシュ' },
+  { id: 2, name: '連波', desc: '重なる複数の波紋' },
+  { id: 3, name: '火花', desc: '放射状に飛ぶ火花' },
+  { id: 4, name: '彗星', desc: '横に流れる光の筋' },
+  { id: 5, name: '脈動', desc: '中心から広がる光の塊' },
+  { id: 6, name: '菱形', desc: 'くり抜いた菱形の閃光' },
+  { id: 7, name: '渦', desc: '渦を描くアーク' },
+  { id: 8, name: '衝撃', desc: '二重の衝撃波' },
+  { id: 9, name: '稲妻', desc: 'ジグザグの稲妻' },
+];
+const SOUND_FX_STYLES = [
+  { id: 0, name: 'ソフト', desc: '短い下降ピング' },
+  { id: 1, name: 'ベル', desc: '澄んだ鐘の音' },
+  { id: 2, name: 'クリック', desc: '硬いタップ音' },
+  { id: 3, name: 'ポップ', desc: '軽いポップ音' },
+  { id: 4, name: 'ドラム', desc: '低い打撃音' },
+  { id: 5, name: 'チャイム', desc: '3音のチャイム' },
+  { id: 6, name: 'ワープ', desc: '音程が滑らかに変化' },
+  { id: 7, name: 'ガラス', desc: '高音のきらめき' },
+  { id: 8, name: 'ノック', desc: '木を叩く音' },
+  { id: 9, name: '笛', desc: '上昇する笛の音' },
+];
+let fxStyleThumbsReady = false;
+
+const hitFxBursts = [];
+const hitFxChains = [];
+const lastHitFxByKey = {};
+const lastHitSoundMsByKey = {};
+let hitAudioCtx = null;
+
+function clampFxStyle(v, max) {
+  const n = parseInt(v, 10);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(max, n));
+}
+
+function ensureHitAudio() {
+  if (!hitAudioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) hitAudioCtx = new AC();
+  }
+  return hitAudioCtx;
+}
+
+function unlockHitAudio() {
+  const ac = ensureHitAudio();
+  if (ac && ac.state === 'suspended') ac.resume().catch(() => {});
+}
+
+function intersectionSoundModifiers(wx, wy) {
+  const scale = Math.max(60, view.scale * 100);
+  const nx = wx / scale;
+  const ny = wy / scale;
+  const pitchMul = Math.pow(2, (nx * 0.42 + ny * 0.28) * 0.38);
+  const bright = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(nx * 0.65) * Math.cos(ny * 0.5));
+  const timbre = ((Math.abs(nx * 7.3 + ny * 5.1) % 1) + 0.5) % 1;
+  return { pitchMul, bright, timbre };
+}
+
+function isHitConnected(prev, wx, wy, now) {
+  if (!prev) return false;
+  if (now - prev.t > 200) return false;
+  const maxDist = Math.max(2.5, 24 / view.scale);
+  return Math.hypot(wx - prev.wx, wy - prev.wy) < maxDist;
+}
+
+function playTone(ac, t0, type, f0, f1, dur, peak) {
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(Math.max(20, f0), t0);
+  if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t0 + dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.006);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+function fadeAllPairSounds() { /* 旧 legato 用・互換のため残す */ }
+
+function playIntersectionSound(key, hue, wx, wy, style, enabled) {
+  if (!enabled) return;
+  const now = performance.now();
+  const minGap = style === 2 ? 35 : 50;
+  if (now - (lastHitSoundMsByKey[key] || 0) < minGap) return;
+  lastHitSoundMsByKey[key] = now;
+  const ac = ensureHitAudio();
+  if (!ac) return;
+  if (ac.state === 'suspended') ac.resume().catch(() => {});
+  try {
+    const t0 = ac.currentTime;
+    const mod = intersectionSoundModifiers(wx, wy);
+    const base = (360 + (hue % 90) * 1.4) * mod.pitchMul;
+    const pk = 0.07 + mod.bright * 0.07;
+    const st = style;
+    if (st === 1) {
+      playTone(ac, t0, 'triangle', base * 1.25, base * 0.88, 0.22, pk);
+      playTone(ac, t0 + 0.01, 'sine', base * 2.05, base * 1.75, 0.14, pk * 0.45);
+    } else if (st === 2) {
+      playTone(ac, t0, 'square', base * 1.6, base * 0.55, 0.035, pk * 0.85);
+    } else if (st === 3) {
+      playTone(ac, t0, 'sine', base * 0.55, base * 1.35, 0.09, pk);
+    } else if (st === 4) {
+      playTone(ac, t0, 'sine', base * 0.28, base * 0.14, 0.14, pk * 1.1);
+    } else if (st === 5) {
+      [1, 1.26, 1.58].forEach((m, i) => {
+        playTone(ac, t0 + i * 0.045, 'sine', base * m, base * m * 0.92, 0.12, pk * 0.55);
+      });
+    } else if (st === 6) {
+      playTone(ac, t0, 'sawtooth', base * 0.7, base * 1.8, 0.11, pk * 0.5);
+    } else if (st === 7) {
+      playTone(ac, t0, 'sine', base * 2.4, base * 2.1, 0.06, pk * 0.35);
+      playTone(ac, t0, 'triangle', base * 3.1 + mod.timbre * 80, base * 2.8, 0.05, pk * 0.25);
+    } else if (st === 8) {
+      playTone(ac, t0, 'square', base * 0.45, base * 0.22, 0.05, pk * 0.9);
+    } else if (st === 9) {
+      playTone(ac, t0, 'sine', base * 0.85, base * 2.2, 0.14, pk * 0.75);
+    } else {
+      playTone(ac, t0, 'sine', base, base * 0.52, 0.1, pk);
+    }
+  } catch { /* ignore */ }
+}
+
+function notifyIntersectionHit(key, sx, sy, hue, wx, wy) {
+  if (!anyShapeRunning()) return;
+  const now = performance.now();
+  const prev = lastHitFxByKey[key];
+  if (prev && now - prev.t < 70 && Math.hypot(prev.wx - wx, prev.wy - wy) < 2.5) return;
+  const connected = isHitConnected(prev, wx, wy, now);
+  lastHitFxByKey[key] = { wx, wy, sx, sy, t: now };
+  const fx = getPairFx(key);
+  if (fx.visualEnabled) {
+    hitFxBursts.push({ x: sx, y: sy, h: hue, t0: now, style: fx.visualStyle });
+    if (hitFxBursts.length > 64) hitFxBursts.shift();
+    if (connected && prev && prev.sx != null) {
+      hitFxChains.push({
+        x0: prev.sx, y0: prev.sy, x1: sx, y1: sy, h: hue, t0: now,
+      });
+      if (hitFxChains.length > 48) hitFxChains.shift();
+    }
+  }
+  playIntersectionSound(key, hue, wx, wy, fx.soundStyle, fx.soundEnabled);
+}
+
+function drawHitFxRing(c, ef, t) {
+  const ringR = 4 + t * 22;
+  c.beginPath();
+  c.arc(ef.x, ef.y, ringR, 0, Math.PI * 2);
+  c.strokeStyle = `hsla(${ef.h}, 100%, 78%, ${(1 - t) * 0.85})`;
+  c.lineWidth = 2;
+  c.stroke();
+  c.beginPath();
+  c.arc(ef.x, ef.y, 7 * (1 - t * 0.35), 0, Math.PI * 2);
+  c.fillStyle = `hsla(${ef.h}, 100%, 92%, ${0.55 * (1 - t)})`;
+  c.fill();
+}
+
+function drawHitFxStar(c, ef, t, age) {
+  const len = 5 + t * 18;
+  c.strokeStyle = `hsla(${ef.h}, 100%, 82%, ${(1 - t) * 0.9})`;
+  c.lineWidth = 1.8;
+  const rot = age * 0.004;
+  for (let a = 0; a < 4; a++) {
+    const ang = rot + a * Math.PI / 2;
+    c.beginPath();
+    c.moveTo(ef.x + Math.cos(ang) * len * 0.25, ef.y + Math.sin(ang) * len * 0.25);
+    c.lineTo(ef.x + Math.cos(ang) * len, ef.y + Math.sin(ang) * len);
+    c.stroke();
+  }
+  c.beginPath();
+  c.arc(ef.x, ef.y, 4 * (1 - t * 0.4), 0, Math.PI * 2);
+  c.fillStyle = `hsla(${ef.h}, 100%, 90%, ${0.7 * (1 - t)})`;
+  c.fill();
+}
+
+function drawHitFxMultiRing(c, ef, t) {
+  for (let k = 0; k < 3; k++) {
+    const tk = Math.max(0, Math.min(1, t * 1.15 - k * 0.18));
+    const ringR = 3 + tk * 20;
+    c.beginPath();
+    c.arc(ef.x, ef.y, ringR, 0, Math.PI * 2);
+    c.strokeStyle = `hsla(${ef.h}, 100%, 75%, ${(1 - tk) * 0.65})`;
+    c.lineWidth = 1.5;
+    c.stroke();
+  }
+}
+
+function drawHitFxSparks(c, ef, t) {
+  const n = 10;
+  for (let i = 0; i < n; i++) {
+    const ang = (i / n) * Math.PI * 2 + ef.h * 0.02;
+    const r = 3 + t * 22;
+    c.beginPath();
+    c.arc(ef.x + Math.cos(ang) * r, ef.y + Math.sin(ang) * r, 1.8 * (1 - t * 0.6), 0, Math.PI * 2);
+    c.fillStyle = `hsla(${ef.h + i * 8}, 100%, 85%, ${(1 - t) * 0.9})`;
+    c.fill();
+  }
+}
+
+function drawHitFxStreak(c, ef, t) {
+  const len = 10 + t * 32;
+  c.strokeStyle = `hsla(${ef.h}, 100%, 88%, ${(1 - t) * 0.95})`;
+  c.lineWidth = 3 * (1 - t * 0.45);
+  c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(ef.x - len * 0.55, ef.y);
+  c.lineTo(ef.x + len * 0.45, ef.y);
+  c.stroke();
+  c.beginPath();
+  c.arc(ef.x + len * 0.35, ef.y, 3.5 * (1 - t), 0, Math.PI * 2);
+  c.fillStyle = `hsla(${ef.h}, 100%, 95%, ${1 - t})`;
+  c.fill();
+}
+
+function drawHitFxPulse(c, ef, t) {
+  const r = 3 + t * 16;
+  c.beginPath();
+  c.arc(ef.x, ef.y, r, 0, Math.PI * 2);
+  c.fillStyle = `hsla(${ef.h}, 95%, 70%, ${(1 - t) * 0.45})`;
+  c.fill();
+  c.strokeStyle = `hsla(${ef.h}, 100%, 88%, ${(1 - t) * 0.7})`;
+  c.lineWidth = 1.5;
+  c.stroke();
+}
+
+function drawHitFxDiamond(c, ef, t) {
+  const s = 4 + t * 14;
+  c.strokeStyle = `hsla(${ef.h}, 100%, 80%, ${1 - t})`;
+  c.lineWidth = 1.6;
+  c.beginPath();
+  c.moveTo(ef.x, ef.y - s);
+  c.lineTo(ef.x + s, ef.y);
+  c.lineTo(ef.x, ef.y + s);
+  c.lineTo(ef.x - s, ef.y);
+  c.closePath();
+  c.stroke();
+}
+
+function drawHitFxSpiral(c, ef, t, age) {
+  c.strokeStyle = `hsla(${ef.h}, 100%, 78%, ${1 - t})`;
+  c.lineWidth = 1.5;
+  c.beginPath();
+  for (let i = 0; i <= 24; i++) {
+    const u = i / 24;
+    const ang = u * 1.2 * Math.PI * 2 + age * 0.003;
+    const r = u * (4 + t * 14);
+    const px = ef.x + Math.cos(ang) * r;
+    const py = ef.y + Math.sin(ang) * r;
+    if (i === 0) c.moveTo(px, py);
+    else c.lineTo(px, py);
+  }
+  c.stroke();
+}
+
+function drawHitFxShock(c, ef, t) {
+  [0, 0.22].forEach((lag, i) => {
+    const tk = Math.max(0, t - lag);
+    c.beginPath();
+    c.arc(ef.x, ef.y, 2 + tk * (i ? 24 : 16), 0, Math.PI * 2);
+    c.strokeStyle = `hsla(${ef.h}, 100%, ${i ? 65 : 82}%, ${(1 - tk) * (i ? 0.5 : 0.85)})`;
+    c.lineWidth = i ? 3 : 1.5;
+    c.stroke();
+  });
+}
+
+function drawHitFxLightning(c, ef, t) {
+  c.strokeStyle = `hsla(${ef.h}, 100%, 90%, ${1 - t})`;
+  c.lineWidth = 2;
+  c.lineJoin = 'round';
+  const h = 8 + t * 10;
+  c.beginPath();
+  c.moveTo(ef.x - h * 0.4, ef.y + h * 0.35);
+  c.lineTo(ef.x - h * 0.05, ef.y);
+  c.lineTo(ef.x + h * 0.15, ef.y - h * 0.25);
+  c.lineTo(ef.x + h * 0.35, ef.y + h * 0.4);
+  c.stroke();
+}
+
+function drawHitFxByStyle(c, ef, t, age, style) {
+  switch (style) {
+    case 1: drawHitFxStar(c, ef, t, age); break;
+    case 2: drawHitFxMultiRing(c, ef, t); break;
+    case 3: drawHitFxSparks(c, ef, t); break;
+    case 4: drawHitFxStreak(c, ef, t); break;
+    case 5: drawHitFxPulse(c, ef, t); break;
+    case 6: drawHitFxDiamond(c, ef, t); break;
+    case 7: drawHitFxSpiral(c, ef, t, age); break;
+    case 8: drawHitFxShock(c, ef, t); break;
+    case 9: drawHitFxLightning(c, ef, t); break;
+    default: drawHitFxRing(c, ef, t); break;
+  }
+}
+
+function drawIntersectionEffects(now) {
+  if (!anyShapeRunning()) return;
+  const chainDur = 280;
+  for (let i = hitFxChains.length - 1; i >= 0; i--) {
+    const ch = hitFxChains[i];
+    const age = now - ch.t0;
+    if (age > chainDur) { hitFxChains.splice(i, 1); continue; }
+    const a = 1 - age / chainDur;
+    ctx.save();
+    ctx.strokeStyle = `hsla(${ch.h}, 90%, 75%, ${a * 0.55})`;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ch.x0, ch.y0);
+    ctx.lineTo(ch.x1, ch.y1);
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (!hitFxBursts.length) return;
+  const dur = 420;
+  for (let i = hitFxBursts.length - 1; i >= 0; i--) {
+    const ef = hitFxBursts[i];
+    const age = now - ef.t0;
+    if (age > dur) { hitFxBursts.splice(i, 1); continue; }
+    const t = age / dur;
+    ctx.save();
+    drawHitFxByStyle(ctx, ef, t, age, ef.style ?? 0);
+    ctx.restore();
+  }
+}
+
+function buildVisualFxThumb(styleId, size) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0b0c14';
+  c.fillRect(0, 0, size, size);
+  drawHitFxByStyle(c, { x: size / 2, y: size / 2, h: 200 }, 0.38, 140, styleId);
+  return cv;
+}
+
+function buildSoundFxThumb(styleId, size) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0b0c14';
+  c.fillRect(0, 0, size, size);
+  const mid = size / 2;
+  const amp = size * 0.28;
+  const wave = (u, ph) => {
+    const env = 0.35 + 0.65 * Math.sin(u * Math.PI);
+    if (styleId === 4) return Math.sin(ph) * amp * 0.4 * env * (1 - u * 0.2);
+    if (styleId === 5) return (Math.sin(ph) + Math.sin(ph * 1.5) * 0.4) * amp * 0.3 * env;
+    return Math.sin(ph + u * 2.5) * amp * 0.42 * env;
+  };
+  c.strokeStyle = 'rgba(160,210,255,.75)';
+  c.lineWidth = 1.4;
+  c.lineCap = 'round';
+  c.beginPath();
+  for (let i = 0; i <= 28; i++) {
+    const u = i / 28;
+    const x = 3 + u * (size - 6);
+    const y = mid + wave(u, u * Math.PI * 2);
+    if (i === 0) c.moveTo(x, y);
+    else c.lineTo(x, y);
+  }
+  c.stroke();
+  return cv;
+}
+
+function ensureFxStyleThumbs() {
+  if (fxStyleThumbsReady) return;
+  const sz = 34;
+  VISUAL_FX_STYLES.forEach(s => { s.thumb = buildVisualFxThumb(s.id, sz); });
+  SOUND_FX_STYLES.forEach(s => { s.thumb = buildSoundFxThumb(s.id, sz); });
+  fxStyleThumbsReady = true;
+}
+
+function worldSpan() {
+  const hw = W / (2 * view.scale), hh = H / (2 * view.scale);
+  return { x0: view.panX - hw, x1: view.panX + hw, y0: view.panY - hh, y1: view.panY + hh };
+}
+
+function drawGrid() {
+  const MINOR = 50, MAJOR = 100;
+  const { x0, x1, y0, y1 } = worldSpan();
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.28)';
+  ctx.lineWidth = 1;
+  const xStart = Math.floor(x0 / MINOR) * MINOR;
+  const yStart = Math.floor(y0 / MINOR) * MINOR;
+  for (let x = xStart; x <= x1; x += MINOR) {
+    if (x % MAJOR === 0) continue;
+    ctx.beginPath(); ctx.moveTo(wx(x), 0); ctx.lineTo(wx(x), H); ctx.stroke();
+  }
+  for (let y = yStart; y <= y1; y += MINOR) {
+    if (y % MAJOR === 0) continue;
+    ctx.beginPath(); ctx.moveTo(0, wy(y)); ctx.lineTo(W, wy(y)); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,.52)';
+  ctx.fillStyle = '#fff';
+  ctx.font = '8px Menlo,monospace';
+  for (let x = Math.floor(x0 / MAJOR) * MAJOR; x <= x1; x += MAJOR) {
+    if (Math.abs(x) < 1e-6) continue;
+    ctx.beginPath(); ctx.moveTo(wx(x), 0); ctx.lineTo(wx(x), H); ctx.stroke();
+    ctx.fillText(String(Math.round(x)), wx(x) + 2, wy(0) - 3);
+  }
+  for (let y = Math.floor(y0 / MAJOR) * MAJOR; y <= y1; y += MAJOR) {
+    if (Math.abs(y) < 1e-6) continue;
+    ctx.beginPath(); ctx.moveTo(0, wy(y)); ctx.lineTo(W, wy(y)); ctx.stroke();
+    ctx.fillText(String(Math.round(y)), wx(0) + 3, wy(y) - 2);
+  }
+  ctx.restore();
+}
+
+function drawAxes() {
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(255,100,100,.35)';
+  ctx.beginPath(); ctx.moveTo(0, wy(0)); ctx.lineTo(W, wy(0)); ctx.stroke();
+  ctx.strokeStyle = 'rgba(100,220,100,.35)';
+  ctx.beginPath(); ctx.moveTo(wx(0), 0); ctx.lineTo(wx(0), H); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)';
+  const TICK = 50;
+  const { x0, x1, y0, y1 } = worldSpan();
+  for (let x = Math.floor(x0 / TICK) * TICK; x <= x1; x += TICK) {
+    ctx.beginPath(); ctx.moveTo(wx(x), wy(0) - 3); ctx.lineTo(wx(x), wy(0) + 3); ctx.stroke();
+  }
+  for (let y = Math.floor(y0 / TICK) * TICK; y <= y1; y += TICK) {
+    ctx.beginPath(); ctx.moveTo(wx(0) - 3, wy(y)); ctx.lineTo(wx(0) + 3, wy(y)); ctx.stroke();
+  }
+  ctx.fillStyle = '#fff';
+  ctx.font = '9px Menlo,monospace';
+  ctx.fillText('0', wx(0) + 4, wy(0) - 4);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('x', W - 12, wy(0) - 5);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('y', wx(0) + 5, 12);
+  ctx.restore();
+}
+
+// ─── Drag state ──────────────────────────────────────────────────────
+let drag = null;
+
+function shapeWorldPointAt(s, lx, ly, fx, fy) {
+  const ca = Math.cos(s.angle), sa = Math.sin(s.angle);
+  const { px, py } = s;
+  return {
+    x: px + (fx + lx - px) * ca - (fy + ly - py) * sa,
+    y: py + (fx + lx - px) * sa + (fy + ly - py) * ca,
+  };
+}
+
+function shapeWorldPoint(s, lx, ly) {
+  return shapeWorldPointAt(s, lx, ly, s.fx, s.fy);
+}
+
+function centerWorldAt(s, fx, fy) {
+  return shapeWorldPointAt(s, 0, 0, fx, fy);
+}
+
+function pivotScreen(s) {
+  return { pxc: wx(s.px), pyc: wy(s.py) };
+}
+
+function drawParabolaHandles(s, idx) {
+  if (!isParabolaShape(s) || idx !== activeTabIdx) return;
+  const w = parabolaWorldPoints(s);
+  if (!w) return;
+  const { hue } = s;
+  [[w.p0, 4], [w.p2, 4]].forEach(([p, r]) => {
+    ctx.beginPath();
+    ctx.arc(wx(p.x), wy(p.y), r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${hue}, 70%, 58%, .75)`;
+    ctx.fill();
+  });
+  ctx.beginPath();
+  ctx.arc(wx(w.p1.x), wy(w.p1.y), 7, 0, Math.PI * 2);
+  ctx.fillStyle = `hsla(${hue}, 90%, 75%, .95)`;
+  ctx.fill();
+  ctx.strokeStyle = `hsla(${hue}, 95%, 92%, .8)`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawHandles() {
+  shapes.forEach((s, idx)=>{
+    if(!s.visible) return;
+    const {hue}=s;
+    const {pxc,pyc}=pivotScreen(s);
+    ctx.beginPath(); ctx.arc(pxc,pyc,5,0,Math.PI*2);
+    ctx.strokeStyle=`hsla(${hue},60%,65%,.8)`; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pxc-9,pyc); ctx.lineTo(pxc+9,pyc);
+    ctx.moveTo(pxc,pyc-9); ctx.lineTo(pxc,pyc+9);
+    ctx.lineWidth=1; ctx.stroke();
+
+    drawParabolaHandles(s, idx);
+
+    getDupCenters(s).forEach(c => {
+      const f = centerWorldAt(s, c.fx, c.fy);
+      const fxc = wx(f.x), fyc = wy(f.y);
+      ctx.save();
+      ctx.setLineDash([3,5]);
+      ctx.strokeStyle=`hsla(${hue},50%,60%,${c.primary ? .35 : .2})`; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(pxc,pyc); ctx.lineTo(fxc,fyc); ctx.stroke();
+      ctx.restore();
+      const r = c.primary ? 6 : 4;
+      ctx.beginPath(); ctx.arc(fxc,fyc,r,0,Math.PI*2);
+      if (c.primary) {
+        ctx.fillStyle=`hsla(${hue},85%,68%,.95)`; ctx.fill();
+        ctx.strokeStyle=`hsla(${hue},95%,90%,.7)`; ctx.lineWidth=1.5; ctx.stroke();
+      } else {
+        ctx.fillStyle=`hsla(${hue},70%,55%,.45)`; ctx.fill();
+      }
+    });
+  });
+}
+
+// ─── Render loop ─────────────────────────────────────────────────────
+function getXf(s) {
+  if (!s.pts || !s.visible) return { instances: [] };
+  const instances = [];
+  getDupCenters(s).forEach(({ fx, fy }) => {
+    const wpts = s.pts.map(p => p ? shapeWorldPointAt(s, p.x, p.y, fx, fy) : null);
+    const pts = wpts.map(p => p ? { x: wx(p.x), y: wy(p.y) } : null);
+    const segs = [];
+    for (let i = 0; i < wpts.length - 1; i++) {
+      if (wpts[i] && wpts[i + 1]) segs.push([wpts[i], wpts[i + 1]]);
+    }
+    instances.push({ pts, segs, wpts });
+  });
+  return { instances };
+}
+
+let lastT = null;
+function recordIntersections() {
+  const xf = shapes.map(s => getXf(s));
+  PAIRS.forEach(({ i, j, h, enabled }) => {
+    if (!enabled || !shapes[i].visible || !shapes[j].visible) return;
+    const key = pairKey(i, j);
+    xf[i].instances.forEach(instI => xf[j].instances.forEach(instJ => {
+      instI.segs.forEach(sa => instJ.segs.forEach(sb => {
+        const p = segX(sa[0], sa[1], sb[0], sb[1]);
+        if (p) appendTrail(key, h, { x: p.x, y: p.y }, false);
+      }));
+    }));
+  });
+}
+
+function runSimulation(durationSec) {
+  clearTrails();
+  shapes.forEach(s => { s.angle = 0; s.paused = false; });
+  const dt = 1 / 60;
+  const steps = Math.ceil(durationSec / dt);
+  const mul = speedMul;
+  for (let step = 0; step < steps; step++) {
+    shapes.forEach(s => { s.angle += s.speed * mul * dt; });
+    recordIntersections();
+    if (!batchNoFade) fadeTrailLayer(dt);
+  }
+  redrawAllTrails();
+}
+
+function trailOnlyPngUint8() {
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#080810';
+  c.fillRect(0, 0, W, H);
+  c.drawImage(trailCv, 0, 0);
+  return dataUrlToUint8(cv.toDataURL('image/png'));
+}
+
+function dataUrlToUint8(dataUrl) {
+  const b64 = dataUrl.split(',')[1];
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+function buildOmegaList(min, max, step) {
+  const list = [];
+  const iMin = Math.round(min / step);
+  const iMax = Math.round(max / step);
+  for (let i = iMin; i <= iMax; i++) {
+    list.push(Math.round(i * step * 1000) / 1000);
+  }
+  return list;
+}
+
+function cartesianOmegaAssignments(omegaList) {
+  const lists = shapes.map(() => omegaList);
+  const out = [];
+  const idx = new Array(lists.length).fill(0);
+  if (!lists.length) return out;
+  while (true) {
+    out.push(idx.map((k, dim) => lists[dim][k]));
+    let dim = lists.length - 1;
+    while (dim >= 0) {
+      idx[dim]++;
+      if (idx[dim] < lists[dim].length) break;
+      idx[dim] = 0;
+      dim--;
+    }
+    if (dim < 0) break;
+  }
+  return out;
+}
+
+function omegaSpeedTag(v) {
+  const n = Math.abs(v);
+  const s = (Math.round(n * 10) / 10).toFixed(1).replace('.', '_');
+  return (v < 0 ? 'm' : 'p') + s;
+}
+
+function batchBaseName(index, speeds) {
+  const parts = speeds.map((v, i) => `s${i}${omegaSpeedTag(v)}`);
+  return `batch_${String(index).padStart(5, '0')}_${parts.join('_')}`;
+}
+
+let batchStartTime = 0;
+
+function setBatchProgress(done, total, msg) {
+  const el = document.getElementById('batchProgress');
+  const bar = document.getElementById('batchProgressBar');
+  const pct = total > 0 ? ((done / total) * 100).toFixed(1) : '0';
+  let elapsed = '';
+  if (batchStartTime) {
+    const sec = (Date.now() - batchStartTime) / 1000;
+    elapsed = sec >= 60
+      ? ` · 経過 ${Math.floor(sec / 60)}分${Math.floor(sec % 60)}秒`
+      : ` · 経過 ${sec.toFixed(0)}秒`;
+  }
+  const core = msg || `処理中 ${done} / ${total}（${pct}%）${elapsed}`;
+  if (el) el.textContent = core;
+  if (bar) {
+    bar.max = total || 1;
+    bar.value = done;
+  }
+}
+
+async function runOmegaBatchExport() {
+  if (batchActive) return;
+  const min = parseFloat(document.getElementById('batchOmegaMin')?.value);
+  const max = parseFloat(document.getElementById('batchOmegaMax')?.value);
+  const step = parseFloat(document.getElementById('batchOmegaStep')?.value);
+  const durationSec = parseFloat(document.getElementById('batchDuration')?.value);
+  if (![min, max, step, durationSec].every(Number.isFinite) || step <= 0 || max < min || durationSec <= 0) {
+    alert('ω範囲・刻み・秒数を正しく入力してください');
+    return;
+  }
+  if (shapes.some(s => s.error || !s.pts)) {
+    alert('式エラーの図形があるためバッチできません');
+    return;
+  }
+  const omegaList = buildOmegaList(min, max, step);
+  const assignments = cartesianOmegaAssignments(omegaList);
+  const total = assignments.length;
+  if (total > 20000) {
+    alert(`組み合わせが ${total} 通りあり多すぎます（上限 20000）`);
+    return;
+  }
+  const est = `図形 ${shapes.length} 個 × ω ${omegaList.length} 通り = ${total} パターン\n` +
+    `各 ${durationSec} 秒シミュレート（軌跡のみ PNG + 同名 JSON）\nZIP で一括ダウンロードします。`;
+  if (total > 2500) {
+    if (!confirm(est + '\n\n数時間かかる場合があります。続行しますか？')) return;
+  } else if (!confirm(est + '\n\n続行しますか？')) return;
+
+  batchActive = true;
+  batchCancel = false;
+  batchNoFade = true;
+  const savedSpeeds = shapes.map(s => s.speed);
+  const zipEntries = {};
+  const btn = document.getElementById('batchExportBtn');
+  const cancelBtn = document.getElementById('batchCancelBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '実行中…'; }
+  if (cancelBtn) cancelBtn.disabled = false;
+
+  batchStartTime = Date.now();
+  setBatchProgress(0, total, `開始しました（全 ${total} パターン）`);
+  await new Promise(r => setTimeout(r, 0));
+
+  try {
+    for (let i = 0; i < total; i++) {
+      if (batchCancel) break;
+      const speeds = assignments[i];
+      speeds.forEach((w, si) => { shapes[si].speed = w; });
+      runSimulation(durationSec);
+      const base = batchBaseName(i, speeds);
+      zipEntries[base + '.png'] = trailOnlyPngUint8();
+      const snap = settingsSnapshot();
+      snap.batch = {
+        index: i,
+        speeds: speeds.map((w, si) => ({ shape: si, omega: w })),
+        durationSec,
+        omegaRange: { min, max, step },
+      };
+      zipEntries[base + '.json'] = fflate.strToU8(JSON.stringify(snap, null, 2));
+      setBatchProgress(i + 1, total,
+        `シミュレート中 ${i + 1} / ${total} · ω: ${speeds.map(w => w.toFixed(1)).join(', ')}`);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    if (batchCancel) {
+      setBatchProgress(0, 1, 'キャンセルしました');
+      return;
+    }
+    setBatchProgress(total, total, 'ZIP を作成中…');
+    await new Promise(r => setTimeout(r, 0));
+    const zipBytes = fflate.zipSync(zipEntries);
+    downloadBlob(new Blob([zipBytes], { type: 'application/zip' }),
+      'locus-omega-batch-' + Date.now() + '.zip');
+    setBatchProgress(total, total, `完了: ${total} パターン`);
+  } catch (err) {
+    console.error(err);
+    alert('バッチ書き出し失敗: ' + (err && err.message ? err.message : String(err)));
+    setBatchProgress(0, 1, 'エラー');
+  } finally {
+    shapes.forEach((s, si) => { s.speed = savedSpeeds[si]; });
+    batchNoFade = false;
+    batchActive = false;
+    batchCancel = false;
+    clearTrails();
+    shapes.forEach(s => { s.angle = 0; });
+    if (btn) { btn.disabled = false; btn.textContent = 'バッチ ZIP 書き出し'; }
+    if (cancelBtn) cancelBtn.disabled = true;
+    batchStartTime = 0;
+  }
+}
+
+function frame(ts) {
+  if (batchActive) { requestAnimationFrame(frame); return; }
+  if (!lastT) { lastT = ts; requestAnimationFrame(frame); return; }
+  const dt = Math.min((ts - lastT) * 0.001, 0.05);
+  lastT = ts;
+  shapes.forEach(s => { if (!s.paused) s.angle += s.speed * speedMul * dt; });
+
+  if (viewDirty) { redrawAllTrails(); viewDirty = false; }
+
+  const xf = shapes.map(s => getXf(s));
+
+  const hits = [];
+  PAIRS.forEach(({ i, j, h, enabled }) => {
+    if (!enabled || !shapes[i].visible || !shapes[j].visible) return;
+    const key = pairKey(i, j);
+    xf[i].instances.forEach(instI => xf[j].instances.forEach(instJ => {
+      instI.segs.forEach(sa => instJ.segs.forEach(sb => {
+        const p = segX(sa[0], sa[1], sb[0], sb[1]);
+        if (p) {
+          const sx = wx(p.x), sy = wy(p.y);
+          hits.push({ x: sx, y: sy, wx: p.x, wy: p.y, h, i, j, key });
+          notifyIntersectionHit(key, sx, sy, h, p.x, p.y);
+          appendTrail(key, h, { x: p.x, y: p.y });
+        }
+      }));
+    }));
+  });
+
+  fadeTrailLayer(dt);
+
+
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(trailCv, 0, 0);
+  if (showGrid) drawGrid();
+  if (showAxes) drawAxes();
+
+  xf.forEach(({ instances }, i) => {
+    if (!shapes[i].visible) return;
+    const { hue } = shapes[i];
+    ctx.strokeStyle = `hsl(${hue},74%,57%)`;
+    ctx.lineWidth = 1.5;
+    instances.forEach(({ pts }) => {
+      ctx.beginPath();
+      let pen = false;
+      pts.forEach(p => {
+        if (p) { if (!pen) { ctx.moveTo(p.x, p.y); pen = true; } else ctx.lineTo(p.x, p.y); }
+        else pen = false;
+      });
+      ctx.stroke();
+    });
+  });
+  drawHandles();
+
+  hits.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${p.h},100%,88%)`;
+    ctx.fill();
+  });
+  drawIntersectionEffects(performance.now());
+
+  captureRecordingFrame();
+
+  requestAnimationFrame(frame);
+}
+
+// ─── Global presets ──────────────────────────────────────────────────
+const GLOBAL_PRESET_SLOTS = [
+  { slot: 1, name: 'no.1', icon: '①', storageKey: 'locus_global_preset_1' },
+  { slot: 2, name: 'no.2', icon: '②', storageKey: 'locus_global_preset_2' },
+  { slot: 3, name: 'no.3', icon: '③', storageKey: 'locus_global_preset_3' },
+  { slot: 4, name: 'no.4', icon: '④', storageKey: 'locus_global_preset_4' },
+];
+
+const GLOBAL_PRESET_BUILTIN_SLOTS = new Set([1, 2, 3, 4]);
+
+function getBuiltinGlobalSnapshot(slot) {
+  const builtins = typeof window !== 'undefined' && window.BUILTIN_GLOBAL_SNAPSHOTS;
+  const raw = builtins && (builtins[slot] || builtins[String(slot)]);
+  if (raw) return JSON.parse(JSON.stringify(raw));
+  return null;
+}
+
+function findSaveForGlobalSlot(slot) {
+  const name = `no.${slot}`;
+  return SAVES.find(sv => {
+    const n = (sv.name || '').trim();
+    return n === name || n.toLowerCase() === name;
+  });
+}
+
+function syncGlobalPresetsFromNamedSaves() {
+  GLOBAL_PRESET_SLOTS.forEach(def => {
+    const sv = findSaveForGlobalSlot(def.slot);
+    if (!sv || !sv.snap) return;
+    try {
+      localStorage.setItem(def.storageKey, JSON.stringify({
+        version: 3,
+        shapes: sv.snap,
+      }));
+    } catch (_) {}
+  });
+}
+
+function resolveGlobalPresetData(slot) {
+  const def = GLOBAL_PRESET_SLOTS.find(g => g.slot === slot);
+  if (!def) return null;
+  if (GLOBAL_PRESET_BUILTIN_SLOTS.has(slot)) {
+    const builtin = getBuiltinGlobalSnapshot(slot);
+    if (builtin && builtin.shapes && builtin.shapes.length) return builtin;
+  }
+  try {
+    const raw = localStorage.getItem(def.storageKey);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data && data.shapes && data.shapes.length) return data;
+    }
+  } catch (_) {}
+  const sv = findSaveForGlobalSlot(slot);
+  if (sv && sv.snap && sv.snap.length) {
+    return { version: 3, shapes: sv.snap };
+  }
+  return getBuiltinGlobalSnapshot(slot);
+}
+
+function seedBuiltinGlobalPresets() {
+  GLOBAL_PRESET_SLOTS.forEach(def => {
+    const snap = getBuiltinGlobalSnapshot(def.slot);
+    if (!snap) return;
+    try {
+      if (!localStorage.getItem(def.storageKey)) {
+        localStorage.setItem(def.storageKey, JSON.stringify(snap));
+      }
+    } catch (_) {}
+  });
+}
+
+function globalPresetThumbSimDuration(data) {
+  if (typeof data.trailDurationSec === 'number' && data.trailDurationSec > 0) {
+    return data.trailDurationSec;
+  }
+  return 20;
+}
+
+function captureAppStateForThumb() {
+  return {
+    shapes: shapeSnapshot(),
+    view: { scale: view.scale, panX: view.panX, panY: view.panY },
+    speedMul,
+    trailWidth,
+    trailDurationSec,
+    pairs: PAIRS.map(p => ({ i: p.i, j: p.j, enabled: p.enabled, h: p.h })),
+    trails: clonePairTrails(),
+    activeTabIdx,
+  };
+}
+
+function applyPresetSnapshotForThumb(data) {
+  shapes.length = 0;
+  data.shapes.forEach(d => shapes.push(makeShape(d)));
+  collapseLegacyDupTabs();
+  if (data.view) {
+    view.scale = data.view.scale ?? 1;
+    view.panX = data.view.panX ?? 0;
+    view.panY = data.view.panY ?? 0;
+  }
+  if (typeof data.speedMul === 'number') speedMul = data.speedMul;
+  if (typeof data.trailWidth === 'number') trailWidth = data.trailWidth;
+  if (typeof data.trailDurationSec === 'number') trailDurationSec = data.trailDurationSec;
+  PAIRS = computePairs();
+  if (data.pairs) {
+    data.pairs.forEach(p => {
+      const pr = PAIRS.find(x => x.i === p.i && x.j === p.j);
+      if (pr) pr.enabled = p.enabled !== false;
+    });
+  }
+}
+
+function restoreAppStateForThumb(saved) {
+  shapes.length = 0;
+  saved.shapes.forEach(d => shapes.push(makeShape(d)));
+  collapseLegacyDupTabs();
+  view.scale = saved.view.scale;
+  view.panX = saved.view.panX;
+  view.panY = saved.view.panY;
+  speedMul = saved.speedMul;
+  trailWidth = saved.trailWidth;
+  trailDurationSec = saved.trailDurationSec;
+  PAIRS = computePairs();
+  saved.pairs.forEach(p => {
+    const pr = PAIRS.find(x => x.i === p.i && x.j === p.j);
+    if (pr) pr.enabled = p.enabled !== false;
+  });
+  restorePairTrails(saved.trails);
+  activeTabIdx = Math.max(0, Math.min(saved.activeTabIdx, shapes.length - 1));
+  viewDirty = true;
+  redrawAllTrails();
+}
+
+/** シミュレーション後の trailCv から軌跡のみを切り出し（wx/wy と同じ画面向き） */
+function captureTrailThumbFromCanvas(size, trailsSrc) {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0c0c18';
+  c.fillRect(0, 0, size, size);
+
+  const screenPts = [];
+  PAIRS.forEach(({ i, j, enabled }) => {
+    if (!enabled || !shapes[i]?.visible || !shapes[j]?.visible) return;
+    const st = trailsSrc[pairKey(i, j)];
+    if (!st) return;
+    st.tracks.forEach(tr => {
+      tr.points.forEach(p => screenPts.push({ x: wx(p.x), y: wy(p.y) }));
+    });
+  });
+
+  const drawFull = () => {
+    const scale = Math.min(size / W, size / H);
+    const dw = W * scale;
+    const dh = H * scale;
+    c.drawImage(trailCv, 0, 0, W, H, (size - dw) / 2, (size - dh) / 2, dw, dh);
+  };
+
+  if (screenPts.length < 2) {
+    drawFull();
+    return cv;
+  }
+
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  screenPts.forEach(p => {
+    x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x);
+    y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y);
+  });
+  const span = Math.max(x1 - x0, y1 - y0, 1);
+  const pad = Math.max(10, span * 0.12);
+  x0 = Math.max(0, Math.floor(x0 - pad));
+  y0 = Math.max(0, Math.floor(y0 - pad));
+  x1 = Math.min(W, Math.ceil(x1 + pad));
+  y1 = Math.min(H, Math.ceil(y1 + pad));
+  const sw = Math.max(1, x1 - x0);
+  const sh = Math.max(1, y1 - y0);
+  const scale = Math.min(size / sw, size / sh);
+  const dw = sw * scale;
+  const dh = sh * scale;
+  c.drawImage(trailCv, x0, y0, sw, sh, (size - dw) / 2, (size - dh) / 2, dw, dh);
+  return cv;
+}
+
+const GLOBAL_THUMB_RENDER_SIZE = 168;
+const GLOBAL_THUMB_DISPLAY_SIZE = 48;
+
+function buildGlobalPresetThumb(data) {
+  const empty = () => {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = GLOBAL_THUMB_DISPLAY_SIZE;
+    const c = cv.getContext('2d');
+    c.fillStyle = '#0c0c18';
+    c.fillRect(0, 0, GLOBAL_THUMB_DISPLAY_SIZE, GLOBAL_THUMB_DISPLAY_SIZE);
+    return cv;
+  };
+  if (!data || !data.shapes || !data.shapes.length) return empty();
+
+  const saved = captureAppStateForThumb();
+  const simSec = globalPresetThumbSimDuration(data);
+  const savedBatchNoFade = batchNoFade;
+  try {
+    applyPresetSnapshotForThumb(data);
+    batchNoFade = true;
+    trailWidth = Math.max(10, (data.trailWidth || trailWidth || 5) * 2.4);
+    runSimulation(simSec);
+    redrawAllTrails();
+    const hi = captureTrailThumbFromCanvas(GLOBAL_THUMB_RENDER_SIZE, clonePairTrails());
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = GLOBAL_THUMB_DISPLAY_SIZE;
+    const c = cv.getContext('2d');
+    c.fillStyle = '#0c0c18';
+    c.fillRect(0, 0, GLOBAL_THUMB_DISPLAY_SIZE, GLOBAL_THUMB_DISPLAY_SIZE);
+    c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = 'high';
+    c.drawImage(
+      hi, 0, 0, GLOBAL_THUMB_RENDER_SIZE, GLOBAL_THUMB_RENDER_SIZE,
+      0, 0, GLOBAL_THUMB_DISPLAY_SIZE, GLOBAL_THUMB_DISPLAY_SIZE,
+    );
+    return cv;
+  } catch (_) {
+    return empty();
+  } finally {
+    batchNoFade = savedBatchNoFade;
+    restoreAppStateForThumb(saved);
+  }
+}
+
+function initGlobalPresetThumbs() {
+  GLOBAL_PRESET_SLOTS.forEach(def => {
+    def._thumbSrc = buildGlobalPresetThumb(resolveGlobalPresetData(def.slot)).toDataURL('image/png');
+  });
+}
+
+function loadGlobalPresetSlot(slot) {
+  const data = resolveGlobalPresetData(slot);
+  if (!data || !data.shapes || !data.shapes.length) return;
+  clearSimHistory();
+  const hasFullSettings = data.view || data.pairs || data.speedMul !== undefined
+    || data.trailWidth !== undefined || data.trailDurationSec !== undefined
+    || data.showGrid !== undefined || data.showAxes !== undefined;
+  if (hasFullSettings) {
+    applySettingsSnapshot(data);
+  } else {
+    shapes.length = 0;
+    data.shapes.forEach(d => shapes.push(makeShape(d)));
+    collapseLegacyDupTabs();
+    PAIRS = computePairs();
+    activeTabIdx = 0;
+    clearTrails();
+    buildUI();
+  }
+  resetPlaybackAfterPreset();
+}
+
+function renderGlobalPresets() {
+  const area = document.getElementById('global-presets');
+  if (!area) return;
+  area.innerHTML = '';
+  GLOBAL_PRESET_SLOTS.forEach(def => {
+    const btn = document.createElement('button');
+    btn.className = 'gp-btn';
+    const img = document.createElement('img');
+    img.className = 'gp-thumb';
+    img.alt = '';
+    img.src = def._thumbSrc || buildGlobalPresetThumb(resolveGlobalPresetData(def.slot)).toDataURL('image/png');
+    btn.appendChild(img);
+    const label = document.createElement('span');
+    label.className = 'gp-label-row';
+    label.innerHTML = `<span class="gp-icon">${def.icon}</span><span>${def.name}</span>`;
+    btn.appendChild(label);
+    btn.title = def.name;
+    btn.addEventListener('click', () => loadGlobalPresetSlot(def.slot));
+    area.appendChild(btn);
+  });
+}
+
+// ─── Saves ───────────────────────────────────────────────────────────
+const SAVES = [];
+
+function persistSaves() {
+  try {
+    localStorage.setItem('locus_saves', JSON.stringify(
+      SAVES.map(sv=>({name:sv.name, thumb:sv.thumb, snap:sv.snap, isInitial:sv.isInitial||false}))
+    ));
+  } catch(e) {}
+}
+
+function loadPersistedSaves() {
+  try {
+    const data = localStorage.getItem('locus_saves');
+    if(!data) return;
+    JSON.parse(data).forEach(sv=>SAVES.push(sv));
+  } catch(e) {}
+}
+
+function shapeSnapshot() {
+  return shapes.map(s => ({
+    formula: s.formula, tMinS: s.tMinS, tMaxS: s.tMaxS, N: s.N,
+    fx: s.fx, fy: s.fy, px: s.px, py: s.py,
+    speed: s.speed, hue: s.hue, angle: s.angle,
+    visible: s.visible, paused: s.paused,
+    dupCount: dupCountOf(s),
+    curveKind: s.curveKind || 'formula',
+    parabola: s.parabola ? {
+      p0: { ...s.parabola.p0 },
+      p1: { ...s.parabola.p1 },
+      p2: { ...s.parabola.p2 },
+    } : undefined,
+    parabolaTMin: s.parabolaTMin,
+    parabolaTMax: s.parabolaTMax,
+  }));
+}
+
+/** 画面の全設定（図形・表示・軌跡・ペアなど） */
+function settingsSnapshot() {
+  return {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    shapes: shapeSnapshot(),
+    view: { scale: view.scale, panX: view.panX, panY: view.panY },
+    speedMul,
+    trailWidth,
+    trailDurationSec,
+    showGrid,
+    showAxes,
+    intersectionVisualEnabled,
+    intersectionSoundEnabled,
+    intersectionVisualStyle,
+    intersectionSoundStyle,
+    activeTabIdx,
+    pairs: PAIRS.map(p => ({
+      i: p.i, j: p.j, enabled: p.enabled, h: p.h,
+      fx: getPairFx(pairKey(p.i, p.j)),
+    })),
+  };
+}
+
+function applySettingsSnapshot(data) {
+  if (!data.shapes || !Array.isArray(data.shapes)) throw new Error('shapes がありません');
+  shapes.length = 0;
+  data.shapes.forEach(d => shapes.push(makeShape(d)));
+  collapseLegacyDupTabs();
+  if (data.view) {
+    view.scale = data.view.scale ?? 1;
+    view.panX = data.view.panX ?? 0;
+    view.panY = data.view.panY ?? 0;
+  }
+  if (typeof data.speedMul === 'number') speedMul = data.speedMul;
+  if (typeof data.trailWidth === 'number') trailWidth = data.trailWidth;
+  if (typeof data.trailDurationSec === 'number') trailDurationSec = data.trailDurationSec;
+  if (typeof data.showGrid === 'boolean') showGrid = data.showGrid;
+  if (typeof data.showAxes === 'boolean') showAxes = data.showAxes;
+  if (typeof data.intersectionVisualEnabled === 'boolean') {
+    intersectionVisualEnabled = data.intersectionVisualEnabled;
+  } else if (typeof data.intersectionEffectsEnabled === 'boolean') {
+    intersectionVisualEnabled = data.intersectionEffectsEnabled;
+  }
+  if (typeof data.intersectionSoundEnabled === 'boolean') {
+    intersectionSoundEnabled = data.intersectionSoundEnabled;
+  } else if (typeof data.intersectionEffectsEnabled === 'boolean') {
+    intersectionSoundEnabled = data.intersectionEffectsEnabled;
+  }
+  if (data.intersectionVisualStyle !== undefined) {
+    intersectionVisualStyle = clampFxStyle(data.intersectionVisualStyle, 9);
+  }
+  if (data.intersectionSoundStyle !== undefined) {
+    intersectionSoundStyle = clampFxStyle(data.intersectionSoundStyle, 9);
+  }
+  syncPairFxDefaultsFromGlobals();
+  persistTrailSettings();
+  PAIRS = computePairs();
+  if (data.pairs) {
+    data.pairs.forEach(p => {
+      const k = pairKey(p.i, p.j);
+      const pr = PAIRS.find(x => x.i === p.i && x.j === p.j);
+      if (pr) pr.enabled = p.enabled !== false;
+      pairEnabledCache[k] = p.enabled !== false;
+      if (p.fx && typeof p.fx === 'object') {
+        pairFxCache[k] = {
+          visualEnabled: p.fx.visualEnabled !== false,
+          soundEnabled: p.fx.soundEnabled === true,
+          visualStyle: clampFxStyle(p.fx.visualStyle, 9),
+          soundStyle: clampFxStyle(p.fx.soundStyle, 9),
+        };
+      }
+    });
+  } else if (typeof data.intersectionEffectsEnabled === 'boolean') {
+    PAIRS.forEach(p => {
+      pairFxCache[pairKey(p.i, p.j)] = {
+        visualEnabled: data.intersectionEffectsEnabled,
+        soundEnabled: data.intersectionEffectsEnabled,
+        visualStyle: intersectionVisualStyle,
+        soundStyle: intersectionSoundStyle,
+      };
+    });
+  }
+  if (PAIRS.length && !selectedPairFxKey) {
+    selectedPairFxKey = pairKey(PAIRS[0].i, PAIRS[0].j);
+  }
+  activeTabIdx = Math.max(0, Math.min(
+    typeof data.activeTabIdx === 'number' ? data.activeTabIdx : 0,
+    shapes.length - 1,
+  ));
+  clearTrails();
+  viewDirty = true;
+  buildUI();
+}
+
+function saveState(name) {
+  const thumb = canvas.toDataURL('image/jpeg', 0.82);
+  const snap  = shapeSnapshot();
+  const saveName = name || ('保存 ' + (SAVES.length + 1));
+  SAVES.push({ name: saveName, thumb, snap, isInitial: false });
+  const slotM = /^no\.([1-4])$/i.exec(saveName.trim());
+  if (slotM) {
+    const def = GLOBAL_PRESET_SLOTS.find(g => g.slot === parseInt(slotM[1], 10));
+    if (def) {
+      try {
+        localStorage.setItem(def.storageKey, JSON.stringify({ version: 3, shapes: snap }));
+      } catch (_) {}
+    }
+  }
+  persistSaves();
+  renderSavesStrip();
+}
+
+function loadSave(snap) {
+  shapes.length = 0;
+  snap.forEach(d => shapes.push(makeShape(d)));
+  collapseLegacyDupTabs();
+  PAIRS = computePairs();
+  activeTabIdx = 0;
+  clearTrails();
+  buildUI();
+}
+
+function renderSavesStrip() {
+  const area = document.getElementById('saves-area');
+  area.innerHTML = '';
+  if(!SAVES.length) return;
+  const lbl = document.createElement('div'); lbl.className='saves-hdr';
+  lbl.textContent = '保存済み（クリックで復元 / ★ = 起動時に読込）';
+  area.appendChild(lbl);
+  const strip = document.createElement('div'); strip.className='saves-strip';
+  SAVES.forEach((sv,idx)=>{
+    const item = document.createElement('div'); item.className='save-item';
+    const img  = document.createElement('img'); img.src=sv.thumb;
+    const nameEl = document.createElement('div'); nameEl.className='save-name';
+    nameEl.textContent = sv.name;
+    const restoreHint = document.createElement('div'); restoreHint.className='save-restore';
+    restoreHint.textContent = '復元';
+
+    // ★ 起動時読込ボタン
+    const homeBtn = document.createElement('button'); homeBtn.className='save-home'+(sv.isInitial?' active':'');
+    homeBtn.textContent='★'; homeBtn.title='起動時にこの状態を読込';
+    homeBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      const wasInitial = sv.isInitial;
+      SAVES.forEach(s => { s.isInitial = false; });
+      sv.isInitial = !wasInitial;
+      persistSaves();
+      renderSavesStrip();
+    });
+
+    // × 削除ボタン
+    const del = document.createElement('button'); del.className='save-del';
+    del.textContent='×';
+    del.addEventListener('click', e=>{
+      e.stopPropagation();
+      SAVES.splice(idx,1); persistSaves(); renderSavesStrip();
+    });
+
+    item.appendChild(img);
+    item.appendChild(restoreHint);
+    item.appendChild(homeBtn);
+    item.appendChild(del);
+    item.appendChild(nameEl);
+    item.addEventListener('click', ()=>loadSave(sv.snap));
+    strip.appendChild(item);
+  });
+  area.appendChild(strip);
+}
+
+// ─── UI ──────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+let activeTabIdx = 0;
+let shapeDetailsExpanded = false;
+let activateShapeTabFn = null;
+
+function makeTransportOptBtn(text, active) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'reset-btn transport-opt-btn' + (active ? ' active-choice' : '');
+  b.textContent = text;
+  return b;
+}
+
+function setTransportOptPair(btnOn, btnOff, isOn) {
+  btnOn.classList.toggle('active-choice', isOn);
+  btnOff.classList.toggle('active-choice', !isOn);
+}
+
+function makeTransportUtilsLine(labelText, buttons) {
+  const line = document.createElement('div');
+  line.className = 'transport-utils-line';
+  const lbl = document.createElement('span');
+  lbl.className = 'transport-utils-lbl';
+  lbl.textContent = labelText;
+  const actions = document.createElement('div');
+  actions.className = 'transport-utils-actions';
+  buttons.forEach(b => actions.appendChild(b));
+  line.append(lbl, actions);
+  return line;
+}
+
+function makeFxStyleThumbBtn(style, active, onSelect) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'fx-style-btn' + (active ? ' active-choice' : '');
+  btn.title = `${style.name} — ${style.desc}`;
+  const thumb = document.createElement('canvas');
+  thumb.className = 'fx-style-thumb';
+  thumb.width = thumb.height = 34;
+  if (style.thumb) thumb.getContext('2d').drawImage(style.thumb, 0, 0);
+  const name = document.createElement('span');
+  name.className = 'fx-style-name';
+  name.textContent = style.name;
+  btn.append(thumb, name);
+  btn.addEventListener('click', () => onSelect(style.id));
+  return btn;
+}
+
+function makeFxControlBlock(label, enabled, styleId, styles, onEnabled, onStyle) {
+  ensureFxStyleThumbs();
+  const block = document.createElement('div');
+  block.className = 'transport-fx-block' + (enabled ? '' : ' fx-disabled');
+  const onBtn = makeTransportOptBtn('ON', enabled);
+  const offBtn = makeTransportOptBtn('OFF', !enabled);
+  onBtn.title = `${label}エフェクトを有効`;
+  offBtn.title = `${label}エフェクトを無効`;
+  const patternRow = document.createElement('div');
+  patternRow.className = 'transport-fx-patterns';
+  const styleBtns = styles.map(s => makeFxStyleThumbBtn(s, s.id === styleId, onStyle));
+  styleBtns.forEach(b => patternRow.appendChild(b));
+  onBtn.addEventListener('click', () => onEnabled(true));
+  offBtn.addEventListener('click', () => onEnabled(false));
+  block.append(makeTransportUtilsLine(label, [onBtn, offBtn]), patternRow);
+  return {
+    block,
+    sync(en, sid) {
+      block.classList.toggle('fx-disabled', !en);
+      setTransportOptPair(onBtn, offBtn, en);
+      styleBtns.forEach((b, i) => b.classList.toggle('active-choice', styles[i].id === sid));
+    },
+  };
+}
+
+function bindCollapsibleToggle(hdrId, bodyId) {
+  const hdr = document.getElementById(hdrId);
+  const body = document.getElementById(bodyId);
+  if (!hdr || !body) return;
+  const sync = () => {
+    const expanded = !body.classList.contains('is-collapsed');
+    hdr.setAttribute('aria-expanded', String(expanded));
+    const chev = hdr.querySelector('.chev');
+    if (chev) chev.textContent = expanded ? '▼' : '▶';
+  };
+  hdr.addEventListener('click', () => {
+    body.classList.toggle('is-collapsed');
+    sync();
+  });
+  sync();
+}
+
+function openShapeFormulaEditor(shapeIdx) {
+  if (activateShapeTabFn && activeTabIdx !== shapeIdx) activateShapeTabFn(shapeIdx);
+  shapeDetailsExpanded = true;
+  updateShapeDetailsExpanded();
+  const fInp = document.getElementById(`f${shapeIdx}`);
+  if (fInp) {
+    fInp.focus();
+    fInp.select();
+  }
+}
+
+function updateShapeDetailsExpanded() {
+  document.querySelectorAll('.details-tab').forEach(btn => {
+    const card = btn.closest('.card-full');
+    const isActive = card && card.classList.contains('active');
+    const open = isActive && shapeDetailsExpanded;
+    btn.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    const chev = btn.querySelector('.details-tab-chev');
+    if (chev) chev.textContent = open ? '▼' : '▶';
+  });
+  document.querySelectorAll('.card-details').forEach(details => {
+    const card = details.closest('.card-full');
+    const isActive = card && card.classList.contains('active');
+    details.classList.toggle('expanded', isActive && shapeDetailsExpanded);
+  });
+}
+
+function buildUI() {
+  const panel = document.getElementById('panel');
+  panel.innerHTML = '';
+
+  const tabRow  = document.createElement('div'); tabRow.className='tab-row';
+  const cardArea= document.createElement('div'); cardArea.className='card-area';
+
+  function styleActiveTabs() {
+    const shapeTabs = tabRow.querySelectorAll('.tab:not(.tab-add)');
+    shapeTabs.forEach((t,j)=>{
+      t.style.borderBottomColor = t.classList.contains('active')
+        ? `hsl(${shapes[j].hue},70%,55%)` : 'transparent';
+    });
+  }
+
+  function activateTab(idx, opts) {
+    activeTabIdx = idx;
+    tabRow.querySelectorAll('.tab:not(.tab-add)').forEach((t, j) => {
+      t.classList.toggle('active', j === idx);
+    });
+    cardArea.querySelectorAll('.card-full').forEach((c, j) => c.classList.toggle('active', j === idx));
+    styleActiveTabs();
+    if (!opts || !opts.keepDetails) shapeDetailsExpanded = false;
+    updateShapeDetailsExpanded();
+  }
+  activateShapeTabFn = activateTab;
+
+  shapes.forEach((shape, i) => {
+    // ── Tab ──────────────────────────────────────────────────────
+    const tab = document.createElement('div');
+    tab.className='tab'+(i===activeTabIdx?' active':'')+(shape.visible?'':' dim-tab');
+    tab.setAttribute('role', 'tab');
+    tab.tabIndex = 0;
+    const dupLbl = dupCountOf(shape) > 1 ? ` ×${dupCountOf(shape)}` : '';
+    const tabDot = document.createElement('span');
+    tabDot.className = 'tab-dot';
+    tabDot.style.background = `hsl(${shape.hue},80%,60%)`;
+    const tabLabel = document.createElement('span');
+    tabLabel.className = 'tab-label';
+    tabLabel.textContent = `図形 ${i + 1}${dupLbl}`;
+    tab.append(tabDot, tabLabel);
+    if (shapes.length > 1) {
+      const tabClose = document.createElement('button');
+      tabClose.type = 'button';
+      tabClose.className = 'tab-close';
+      tabClose.textContent = '×';
+      tabClose.title = 'このタブを削除';
+      tabClose.setAttribute('aria-label', `図形 ${i + 1} を削除`);
+      tabClose.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteShape(i);
+      });
+      tab.appendChild(tabClose);
+    }
+    tab.addEventListener('click', e => {
+      if (e.target.closest('.tab-close')) return;
+      activateTab(i);
+    });
+    tab.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activateTab(i);
+      }
+    });
+    tabRow.appendChild(tab);
+
+    // ── Card ─────────────────────────────────────────────────────
+    const prev=document.createElement('canvas');
+    prev.width=prev.height=64; prev.className='shape-prev';
+    shape.thumbCv=prev; updateShapeThumb(i);
+
+    const card=document.createElement('div');
+    card.className='card-full'+(i===activeTabIdx?' active':'');
+    card.innerHTML=`
+      <div class="card-head">
+        <div class="head-info">
+          <span class="swatch" style="background:hsl(${shape.hue},80%,60%)"></span>
+          <span class="card-name">図形 ${i+1}${dupCountOf(shape)>1?' ×'+dupCountOf(shape):''}</span>
+          <span class="ftype-tag" id="ftag${i}">${isParabolaShape(shape)?'parabola':(shape.isPolar?'polar':'param')}</span>
+          <button class="vis-btn ${shape.paused?'':'on'}" id="pbtn${i}">${shape.paused?'▶ 再開':'⏸ 停止'}</button>
+          <button class="vis-btn ${shape.visible?'on':''}" id="vbtn${i}">${shape.visible?'表示中':'非表示'}</button>
+        </div>
+      </div>
+      <div class="preset-lbl">プリセット（クリックで適用）</div>
+      <div class="preset-strip" id="ps${i}"></div>
+      <div class="preset-params" id="psParams${i}"></div>
+      <button type="button" class="details-tab" id="detailsTab${i}" aria-expanded="false">
+        <span class="details-tab-chev">▶</span><span>詳細</span>
+      </button>
+      <div class="card-details">
+      <div class="cf">
+        <span class="cf-lbl">式</span>
+        <input type="text" style="flex:1" id="f${i}" value="${esc(shape.formula)}">
+      </div>
+      <div class="desc formula-hint" id="fhint${i}"></div>
+      <div class="desc">
+        カンマ<b>なし</b> → 極座標 <b>r(t)</b>（数値だけなら<b>半径</b>）&nbsp;／&nbsp;
+        カンマ<b>あり</b> → <b>x(t), y(t)</b> &nbsp;&nbsp;
+        数式の原点 = 図形の中心 (fx, fy)
+      </div>
+      <div class="err-msg" id="err${i}"></div>
+
+      <div class="cf">
+        <span class="cf-lbl">t 範囲</span>
+        <input type="text"   class="w60" id="tmin${i}" value="${esc(shape.tMinS)}">
+        <span class="sep">〜</span>
+        <input type="text"   class="w60" id="tmax${i}" value="${esc(shape.tMaxS)}">
+        <span class="cf-lbl" style="width:auto;padding-left:10px">N</span>
+        <input type="number" class="w60" id="n${i}" value="${shape.N}" min="5" max="2000" step="10">
+      </div>
+      <div class="desc">
+        <b>t</b>: パラメータ範囲 &nbsp;（<b>pi</b>・<b>2*pi</b> 使用可）&nbsp;&nbsp;
+        <b>N</b>: 分割数（多いほど滑らか）
+      </div>
+
+      <div class="cf">
+        <span class="cf-lbl">図形の中心 ●</span>
+        <span class="sep">fx</span>
+        <input type="number" class="w70" id="fx${i}" value="${shape.fx}" step="1">
+        <span class="sep" style="margin-left:8px">fy</span>
+        <input type="number" class="w70" id="fy${i}" value="${shape.fy}" step="1">
+      </div>
+      <div class="desc">数式座標の原点（複製時は配置の基準）　キャンバス上でドラッグ可</div>
+
+      <div class="cf">
+        <span class="cf-lbl">回転の軸 ⊕</span>
+        <span class="sep">px</span>
+        <input type="number" class="w70" id="px${i}" value="${shape.px}" step="1">
+        <span class="sep" style="margin-left:8px">py</span>
+        <input type="number" class="w70" id="py${i}" value="${shape.py}" step="1">
+      </div>
+      <div class="desc">
+        この点を中心に回転　ドラッグ可 &nbsp;&nbsp;
+        (0,0) = 中心　+x = 右　+y = 上
+      </div>
+
+      <div class="cf">
+        <span class="cf-lbl">回転速度 ω</span>
+        <input type="number" class="w80" id="spd${i}" value="${shape.speed}" step="0.01">
+        <span class="sep" style="margin-left:4px">rad/s</span>
+      </div>
+      <div class="desc"><b>正</b> = 反時計回り &nbsp; <b>負</b> = 時計回り &nbsp; 0 = 停止</div>
+
+      <div class="cf">
+        <span class="cf-lbl">複製</span>
+        <input type="number" class="w60" id="dup${i}" value="${shape.dupCount || 1}" min="1" max="18" step="1">
+        <button type="button" class="vis-btn" id="dupbtn${i}">複製</button>
+      </div>
+      <div class="desc">図形の中心の位置</div>
+      </div>
+    `;
+
+    card.querySelector('.card-head').insertBefore(prev, card.querySelector('.card-head').firstChild);
+
+    // ── Apply logic ──────────────────────────────────────────────
+    function applyFormula(formula, tMinS, tMaxS, N) {
+      const tMin=parseT(tMinS), tMax=parseT(tMaxS);
+      shape.curveKind = 'formula';
+      shape.parabola = null;
+      Object.assign(shape, {formula, tMinS, tMaxS, tMin, tMax, N});
+      document.getElementById(`f${i}`).value=formula;
+      document.getElementById(`tmin${i}`).value=tMinS;
+      document.getElementById(`tmax${i}`).value=tMaxS;
+      document.getElementById(`n${i}`).value=N;
+      const fInp=document.getElementById(`f${i}`);
+      const errDiv=document.getElementById(`err${i}`);
+      try {
+        const {pts,isPolar}=compileCurve(formula,tMin,tMax,N);
+        shape.pts=pts; shape.isPolar=isPolar; shape.error=null;
+        fInp.classList.remove('ferr'); errDiv.style.display='none';
+        document.getElementById(`ftag${i}`).textContent=isPolar?'polar':'param';
+      } catch(e) {
+        shape.error=e.message; shape.pts=null;
+        fInp.classList.add('ferr'); errDiv.textContent=e.message; errDiv.style.display='';
+      }
+      updateShapeThumb(i);
+      updateFormulaHint(i);
+      resetTimingAndTrails();
+    }
+
+    function applyFromInputs() {
+      const formula=document.getElementById(`f${i}`).value;
+      const tMinS  =document.getElementById(`tmin${i}`).value;
+      const tMaxS  =document.getElementById(`tmax${i}`).value;
+      const N  =Math.max(5,parseInt(document.getElementById(`n${i}`).value)||250);
+      const fx =parseFloat(document.getElementById(`fx${i}`).value);
+      const fy =parseFloat(document.getElementById(`fy${i}`).value);
+      const px =parseFloat(document.getElementById(`px${i}`).value);
+      const py =parseFloat(document.getElementById(`py${i}`).value);
+      const spd=parseFloat(document.getElementById(`spd${i}`).value);
+      if(isFinite(fx)) shape.fx=fx;
+      if(isFinite(fy)) shape.fy=fy;
+      if(isFinite(px)) shape.px=px;
+      if(isFinite(py)) shape.py=py;
+      if(isFinite(spd)) shape.speed=spd;
+      applyFormula(formula,tMinS,tMaxS,N);
+    }
+
+    card.querySelectorAll('input').forEach(inp=>{
+      if (inp.id === `dup${i}`) return;
+      if (inp.id && inp.id.startsWith('ps')) return;
+      const onEdit = () => applyFromInputs();
+      inp.addEventListener('change', onEdit);
+      if (inp.type === 'number' || inp.type === 'text') inp.addEventListener('input', onEdit);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') { inp.blur(); applyFromInputs(); } });
+    });
+
+    // ── Pause ────────────────────────────────────────────────────
+    card.querySelector(`#pbtn${i}`).addEventListener('click',()=>{
+      shape.paused=!shape.paused;
+      if (!shape.paused) clearSimHistory();
+      else if (allShapesPaused()) seedSimHistory();
+      updatePlaybackUI();
+    });
+
+    // ── Visibility ───────────────────────────────────────────────
+    card.querySelector(`#vbtn${i}`).addEventListener('click',()=>{
+      shape.visible=!shape.visible;
+      const btn=document.getElementById(`vbtn${i}`);
+      btn.textContent=shape.visible?'表示中':'非表示';
+      btn.classList.toggle('on',shape.visible);
+      tabRow.querySelectorAll('.tab:not(.tab-add)')[i].classList.toggle('dim-tab',!shape.visible);
+    });
+
+    // ── Duplicate around pivot ───────────────────────────────────
+    const dupInp = card.querySelector(`#dup${i}`);
+    const runDup = () => {
+      applyFromInputs();
+      let n = parseInt(dupInp.value, 10);
+      if (!Number.isFinite(n)) n = 1;
+      n = Math.max(1, Math.min(18, n));
+      dupInp.value = String(n);
+      applyDuplicate(i, n);
+      const tab = tabRow.querySelectorAll('.tab:not(.tab-add)')[i];
+      const tabLabel = tab && tab.querySelector('.tab-label');
+      if (tabLabel) {
+        const dupLbl = n > 1 ? ` ×${n}` : '';
+        tabLabel.textContent = `図形 ${i + 1}${dupLbl}`;
+      }
+    };
+    card.querySelector(`#dupbtn${i}`).addEventListener('click', runDup);
+    dupInp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); runDup(); }
+    });
+
+    // ── Preset strip ─────────────────────────────────────────────
+    const strip = card.querySelector(`#ps${i}`);
+    buildPresetStripForShape(strip, i, shape, applyFormula, openShapeFormulaEditor);
+
+    const detailsTab = card.querySelector(`#detailsTab${i}`);
+    if (detailsTab) {
+      detailsTab.addEventListener('click', () => {
+        if (activeTabIdx !== i) {
+          activateTab(i, { keepDetails: true });
+          shapeDetailsExpanded = true;
+        } else {
+          shapeDetailsExpanded = !shapeDetailsExpanded;
+        }
+        updateShapeDetailsExpanded();
+      });
+    }
+
+    cardArea.appendChild(card);
+    updateFormulaHint(i);
+  });
+
+  // ── "+" tab ──────────────────────────────────────────────────────
+  const addTab = document.createElement('button'); addTab.className='tab-add';
+  addTab.textContent='+'; addTab.title='図形を追加';
+  addTab.addEventListener('click', addShape);
+  tabRow.appendChild(addTab);
+
+  styleActiveTabs();
+  tabRow.addEventListener('click', styleActiveTabs);
+
+  const transportBlock = document.createElement('div');
+  transportBlock.className = 'transport-block';
+  const transportRow = document.createElement('div');
+  transportRow.className = 'transport-transport-row';
+  const stepBackBtn = document.createElement('button');
+  stepBackBtn.type = 'button';
+  stepBackBtn.id = 'stepBackBtn';
+  stepBackBtn.className = 'reset-btn transport-btn';
+  stepBackBtn.textContent = '◀';
+  stepBackBtn.title = 'コマ戻し（全停止中）';
+  const allPauseBtn = document.createElement('button');
+  allPauseBtn.type = 'button';
+  allPauseBtn.id = 'allPauseBtn';
+  const _anyRunning = shapes.some(s => !s.paused);
+  allPauseBtn.className = 'reset-btn transport-btn transport-btn-main' + (_anyRunning ? ' is-pausing' : '');
+  allPauseBtn.textContent = _anyRunning ? '||' : '▶';
+  allPauseBtn.title = _anyRunning ? '全図形を停止' : '全図形を再生';
+  const stepFwdBtn = document.createElement('button');
+  stepFwdBtn.type = 'button';
+  stepFwdBtn.id = 'stepFwdBtn';
+  stepFwdBtn.className = 'reset-btn transport-btn';
+  stepFwdBtn.textContent = '▶';
+  stepFwdBtn.title = 'コマ送り（全停止中）';
+  transportRow.append(stepBackBtn, allPauseBtn, stepFwdBtn);
+  const utilsWrap = document.createElement('div');
+  utilsWrap.className = 'transport-utils-rows';
+  const axisShowBtn = makeTransportOptBtn('表示', showAxes);
+  const axisHideBtn = makeTransportOptBtn('非表示', !showAxes);
+  axisShowBtn.title = '座標軸を表示';
+  axisHideBtn.title = '座標軸を非表示';
+  const gridShowBtn = makeTransportOptBtn('表示', showGrid);
+  const gridHideBtn = makeTransportOptBtn('非表示', !showGrid);
+  gridShowBtn.title = 'グリッドを表示';
+  gridHideBtn.title = 'グリッドを非表示';
+  const onTransportClick = () => unlockHitAudio();
+  const timingResetBtn = document.createElement('button');
+  timingResetBtn.type = 'button';
+  timingResetBtn.className = 'reset-btn transport-opt-btn';
+  timingResetBtn.textContent = 'リセット';
+  timingResetBtn.title = '全図形の回転角度を0に揃える（軌跡は残す）';
+  const viewResetBtn = document.createElement('button');
+  viewResetBtn.type = 'button';
+  viewResetBtn.className = 'reset-btn transport-opt-btn';
+  viewResetBtn.textContent = 'リセット';
+  viewResetBtn.title = '拡大・移動を初期状態に戻す';
+  utilsWrap.append(
+    makeTransportUtilsLine('軸', [axisShowBtn, axisHideBtn]),
+    makeTransportUtilsLine('グリッド', [gridShowBtn, gridHideBtn]),
+    makeTransportUtilsLine('タイミング', [timingResetBtn]),
+    makeTransportUtilsLine('ビュー', [viewResetBtn]),
+  );
+  transportBlock.append(transportRow, utilsWrap);
+  panel.appendChild(transportBlock);
+
+  const slidersSec = document.createElement('section');
+  slidersSec.className = 'panel-section sliders-grid';
+  slidersSec.id = 'slidersSection';
+  const slidersHdr = document.createElement('button');
+  slidersHdr.type = 'button';
+  slidersHdr.className = 'collapsible-hdr panel-inline-hdr';
+  slidersHdr.id = 'slidersCollapsibleHdr';
+  slidersHdr.setAttribute('aria-expanded', 'false');
+  slidersHdr.innerHTML = '<span class="chev">▶</span><span>軌跡・速度</span>';
+  slidersSec.appendChild(slidersHdr);
+  const slidersBody = document.createElement('div');
+  slidersBody.className = 'collapsible-body is-collapsed';
+  slidersBody.id = 'slidersCollapsibleBody';
+
+  const speedRow = document.createElement('div');
+  speedRow.className = 'ctrl-row';
+  const speedLbl = document.createElement('label');
+  speedLbl.htmlFor = 'speedMul';
+  speedLbl.textContent = '再生速度';
+  const speedRange = document.createElement('input');
+  speedRange.type = 'range';
+  speedRange.id = 'speedMul';
+  speedRange.min = '0';
+  speedRange.max = '200';
+  speedRange.value = String(Math.round(speedMul * 100));
+  const speedVal = document.createElement('span');
+  speedVal.style.color = '#fff';
+  speedVal.textContent = speedMul.toFixed(2) + '×';
+  speedRange.addEventListener('input', () => {
+    speedMul = parseInt(speedRange.value, 10) / 100;
+    speedVal.textContent = speedMul.toFixed(2) + '×';
+    resetTimingAndTrails();
+  });
+  speedRow.append(speedLbl, speedRange, speedVal);
+  slidersBody.appendChild(speedRow);
+
+  const trailRow = document.createElement('div');
+  trailRow.className = 'ctrl-row';
+  const widthLbl = document.createElement('label');
+  widthLbl.htmlFor = 'trailWidth';
+  widthLbl.textContent = '軌跡の太さ';
+  const widthRange = document.createElement('input');
+  widthRange.type = 'range';
+  widthRange.id = 'trailWidth';
+  widthRange.min = '5';
+  widthRange.max = '80';
+  widthRange.value = String(Math.round(trailWidth * 10));
+  const widthVal = document.createElement('span');
+  widthVal.style.color = '#fff';
+  widthVal.textContent = trailWidth.toFixed(1) + 'px';
+  widthRange.addEventListener('input', () => {
+    trailWidth = parseInt(widthRange.value, 10) / 10;
+    widthVal.textContent = trailWidth.toFixed(1) + 'px';
+    persistTrailSettings();
+    resetTimingAndTrails();
+  });
+  trailRow.append(widthLbl, widthRange, widthVal);
+  slidersBody.appendChild(trailRow);
+
+  const durRow = document.createElement('div');
+  durRow.className = 'ctrl-row';
+  const durLbl = document.createElement('label');
+  durLbl.htmlFor = 'trailDuration';
+  durLbl.textContent = '表示時間';
+  const durRange = document.createElement('input');
+  durRange.type = 'range';
+  durRange.id = 'trailDuration';
+  durRange.min = '3';
+  durRange.max = '600';
+  durRange.value = String(Math.round(trailDurationSec * 10));
+  const durVal = document.createElement('span');
+  durVal.style.color = '#fff';
+  durVal.textContent = trailDurationSec.toFixed(1) + '秒';
+  durRange.addEventListener('input', () => {
+    trailDurationSec = parseInt(durRange.value, 10) / 10;
+    durVal.textContent = trailDurationSec.toFixed(1) + '秒';
+    persistTrailSettings();
+    resetTimingAndTrails();
+  });
+  durRow.append(durLbl, durRange, durVal);
+  slidersBody.appendChild(durRow);
+  slidersSec.appendChild(slidersBody);
+  panel.appendChild(slidersSec);
+
+  panel.appendChild(tabRow);
+  panel.appendChild(cardArea);
+  allPauseBtn.addEventListener('click', function () {
+    const anyRunning = shapes.some(s => !s.paused);
+    shapes.forEach(s => { s.paused = anyRunning; });
+    if (anyRunning) seedSimHistory();
+    else clearSimHistory();
+    updatePlaybackUI();
+  });
+  stepBackBtn.addEventListener('click', stepSimulationBack);
+  stepFwdBtn.addEventListener('click', stepSimulationForward);
+  timingResetBtn.addEventListener('click', () => {
+    onTransportClick();
+    shapes.forEach(s => { s.angle = 0; });
+    if (allShapesPaused()) seedSimHistory();
+  });
+  viewResetBtn.addEventListener('click', () => {
+    onTransportClick();
+    resetView();
+  });
+  axisShowBtn.addEventListener('click', () => {
+    onTransportClick();
+    showAxes = true;
+    setTransportOptPair(axisShowBtn, axisHideBtn, true);
+  });
+  axisHideBtn.addEventListener('click', () => {
+    onTransportClick();
+    showAxes = false;
+    setTransportOptPair(axisShowBtn, axisHideBtn, false);
+  });
+  gridShowBtn.addEventListener('click', () => {
+    onTransportClick();
+    showGrid = true;
+    setTransportOptPair(gridShowBtn, gridHideBtn, true);
+  });
+  gridHideBtn.addEventListener('click', () => {
+    onTransportClick();
+    showGrid = false;
+    setTransportOptPair(gridShowBtn, gridHideBtn, false);
+  });
+  // ── 交点ペア ─────────────────────────────────────────────────────
+  const pairsSec = document.createElement('section');
+  pairsSec.className = 'panel-section';
+  const pairsTitle = document.createElement('div');
+  pairsTitle.className = 'panel-section-title';
+  pairsTitle.textContent = '交点ペア';
+  pairsSec.appendChild(pairsTitle);
+  const bot = document.createElement('div');
+  bot.className = 'bottom';
+
+  const legend = document.createElement('div');
+  legend.className = 'pair-legend';
+  const pairLbl = document.createElement('span');
+  pairLbl.className = 'hint';
+  pairLbl.textContent = 'チェックで軌跡 · 行クリックでエフェクト編集';
+  legend.appendChild(pairLbl);
+  if (!selectedPairFxKey && PAIRS.length) {
+    selectedPairFxKey = pairKey(PAIRS[0].i, PAIRS[0].j);
+  }
+  PAIRS.forEach(pair => {
+    const k = pairKey(pair.i, pair.j);
+    const row = document.createElement('label');
+    row.className = 'pair-row' + (pair.enabled ? '' : ' off') + (k === selectedPairFxKey ? ' selected' : '');
+    row.innerHTML = `<input type="checkbox" ${pair.enabled ? 'checked' : ''}>
+      <span class="pdot" style="background:hsl(${pair.h},90%,62%)"></span>${pair.i + 1}∩${pair.j + 1}`;
+    row.querySelector('input').addEventListener('change', e => {
+      pair.enabled = e.target.checked;
+      pairEnabledCache[k] = pair.enabled;
+      row.classList.toggle('off', !pair.enabled);
+    });
+    row.addEventListener('click', e => {
+      if (e.target.type === 'checkbox') return;
+      selectedPairFxKey = k;
+      legend.querySelectorAll('.pair-row').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+      refreshPairFxEditor();
+    });
+    legend.appendChild(row);
+  });
+  bot.appendChild(legend);
+
+  const pairFxPanel = document.createElement('div');
+  pairFxPanel.className = 'pair-fx-panel';
+  const pairFxTitle = document.createElement('div');
+  pairFxTitle.className = 'pair-fx-title';
+  pairFxPanel.appendChild(pairFxTitle);
+  const applyAllBtn = document.createElement('button');
+  applyAllBtn.type = 'button';
+  applyAllBtn.className = 'reset-btn pair-fx-apply-all';
+  applyAllBtn.textContent = 'この設定を全ペアに適用';
+  let visualFxCtrl;
+  let soundFxCtrl;
+  function refreshPairFxEditor() {
+    if (!selectedPairFxKey) {
+      pairFxTitle.textContent = 'ペアを選択してください';
+      return;
+    }
+    const [i, j] = selectedPairFxKey.split('-').map(Number);
+    const fx = getPairFx(selectedPairFxKey);
+    pairFxTitle.textContent = `ペア ${i + 1}∩${j + 1} のエフェクト`;
+    if (visualFxCtrl) visualFxCtrl.sync(fx.visualEnabled, fx.visualStyle);
+    if (soundFxCtrl) soundFxCtrl.sync(fx.soundEnabled, fx.soundStyle);
+  }
+  visualFxCtrl = makeFxControlBlock(
+    'ビジュアル',
+    true,
+    0,
+    VISUAL_FX_STYLES,
+    en => {
+      onTransportClick();
+      setPairFx(selectedPairFxKey, { visualEnabled: en });
+      if (!en) hitFxBursts.length = 0;
+      refreshPairFxEditor();
+    },
+    id => {
+      onTransportClick();
+      setPairFx(selectedPairFxKey, { visualStyle: id });
+      refreshPairFxEditor();
+    },
+  );
+  soundFxCtrl = makeFxControlBlock(
+    'サウンド',
+    false,
+    0,
+    SOUND_FX_STYLES,
+    en => {
+      onTransportClick();
+      if (!selectedPairFxKey) return;
+      setPairFx(selectedPairFxKey, { soundEnabled: en });
+      if (en) unlockHitAudio();
+      refreshPairFxEditor();
+    },
+    id => {
+      onTransportClick();
+      setPairFx(selectedPairFxKey, { soundStyle: id });
+      refreshPairFxEditor();
+    },
+  );
+  pairFxPanel.append(visualFxCtrl.block, soundFxCtrl.block);
+  if (PAIRS.length > 1) {
+    pairFxPanel.appendChild(applyAllBtn);
+    applyAllBtn.addEventListener('click', () => {
+      if (!selectedPairFxKey) return;
+      const fx = getPairFx(selectedPairFxKey);
+      PAIRS.forEach(p => setPairFx(pairKey(p.i, p.j), { ...fx }));
+      refreshPairFxEditor();
+    });
+  }
+  bot.appendChild(pairFxPanel);
+  pairsSec.appendChild(bot);
+  pairFxEditorRefresh = refreshPairFxEditor;
+  refreshPairFxEditor();
+  if (PAIRS.length >= 1) {
+    panel.appendChild(pairsSec);
+  }
+
+
+  const saveBarHost = document.getElementById('save-bar-host');
+  if (saveBarHost) {
+    saveBarHost.innerHTML = '';
+    const saveBar = document.createElement('div');
+    saveBar.className = 'save-bar';
+    saveBar.style.marginTop = '0';
+    saveBar.style.paddingTop = '0';
+    saveBar.style.borderTop = 'none';
+    saveBar.innerHTML = `
+      <span class="save-bar-lbl">保存名</span>
+      <input type="text" id="saveNameInp" placeholder="（省略可）">
+      <button class="save-bar-btn" id="saveBtn">📷 保存</button>
+    `;
+    saveBarHost.appendChild(saveBar);
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const name = document.getElementById('saveNameInp').value.trim();
+      saveState(name);
+      document.getElementById('saveNameInp').value = '';
+    });
+  }
+
+  const exportRow=document.createElement('div'); exportRow.className='export-row';
+  const pngBtn=document.createElement('button'); pngBtn.className='reset-btn';
+  pngBtn.textContent='PNG出力';
+  pngBtn.addEventListener('click', exportPng);
+  const jsonOutBtn=document.createElement('button'); jsonOutBtn.className='reset-btn';
+  jsonOutBtn.textContent='設定の保存';
+  jsonOutBtn.title='図形・表示・軌跡・ペアなどの設定をファイルに保存';
+  jsonOutBtn.addEventListener('click', exportJson);
+  const jsonInLbl=document.createElement('label'); jsonInLbl.className='reset-btn';
+  jsonInLbl.style.cursor='pointer';
+  jsonInLbl.textContent='設定の読み込み';
+  jsonInLbl.title='保存した設定ファイルを読み込む';
+  const jsonInp=document.createElement('input');
+  jsonInp.type='file'; jsonInp.accept='application/json,.json';
+  jsonInp.style.display='none';
+  jsonInLbl.appendChild(jsonInp);
+  jsonInp.addEventListener('change', e=>{
+    const f=e.target.files&&e.target.files[0];
+    if(f) importJsonFile(f);
+    jsonInp.value='';
+  });
+  const recStartBtn=document.createElement('button');
+  recStartBtn.id='recStartBtn';
+  recStartBtn.className='reset-btn rec-start';
+  recStartBtn.textContent='● MP4録画';
+  recStartBtn.addEventListener('click', () => {
+    startRecording().catch(e => alert(e && e.message ? e.message : String(e)));
+  });
+  const recStopBtn=document.createElement('button');
+  recStopBtn.id='recStopBtn';
+  recStopBtn.className='reset-btn rec-stop';
+  recStopBtn.textContent='■ 停止';
+  recStopBtn.disabled=true;
+  recStopBtn.addEventListener('click', stopRecording);
+  exportRow.append(pngBtn, recStartBtn, recStopBtn, jsonOutBtn, jsonInLbl);
+  panel.appendChild(exportRow);
+
+  const batchPanel = document.createElement('div');
+  batchPanel.className = 'batch-panel';
+  batchPanel.innerHTML = `
+    <div class="batch-title">ω 総当りバッチ（図形ごと・軌跡のみ・ZIP）</div>
+    <div class="cf">
+      <span class="cf-lbl">ω 範囲</span>
+      <input type="number" class="w60" id="batchOmegaMin" value="-5" step="0.1">
+      <span class="sep">〜</span>
+      <input type="number" class="w60" id="batchOmegaMax" value="5" step="0.1">
+      <span class="sep">刻み</span>
+      <input type="number" class="w60" id="batchOmegaStep" value="0.1" step="0.1" min="0.01">
+    </div>
+    <div class="cf">
+      <span class="cf-lbl">秒数</span>
+      <input type="number" class="w60" id="batchDuration" value="10" min="0.5" step="0.5">
+      <span class="sep">秒 / パターン</span>
+    </div>
+    <div class="desc">ω −5〜5・刻み0.1 → 101通り/図形。2図形なら 101×101 = 10,201 通り（(通り数)^図形数）</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button type="button" class="reset-btn" id="batchExportBtn">バッチ ZIP 書き出し</button>
+      <button type="button" class="reset-btn" id="batchCancelBtn" disabled>キャンセル</button>
+    </div>
+    <div class="batch-progress">
+      <progress id="batchProgressBar" value="0" max="1"></progress>
+      <div id="batchProgress"></div>
+    </div>
+  `;
+  const batchHost = document.getElementById('batch-panel-host');
+  if (batchHost) {
+    batchHost.innerHTML = '';
+    batchPanel.style.marginTop = '0';
+    batchPanel.style.paddingTop = '0';
+    batchPanel.style.borderTop = 'none';
+    batchHost.appendChild(batchPanel);
+  } else {
+    panel.appendChild(batchPanel);
+  }
+  document.getElementById('batchExportBtn').addEventListener('click', () => {
+    runOmegaBatchExport().catch(e => alert(e && e.message ? e.message : String(e)));
+  });
+  document.getElementById('batchCancelBtn').addEventListener('click', () => { batchCancel = true; });
+
+  bindCollapsibleToggle('saveCollapsibleHdr', 'saveCollapsibleBody');
+  bindCollapsibleToggle('batchCollapsibleHdr', 'batchCollapsibleBody');
+  bindCollapsibleToggle('slidersCollapsibleHdr', 'slidersCollapsibleBody');
+  updateShapeDetailsExpanded();
+  updatePlaybackUI();
+  if (isRecording) updateRecordUI(true);
+}
+
+// ─── Canvas recording (H.264 MP4) ────────────────────────────────────
+let mediaRecorder = null;
+let recordStream = null;
+let recordChunks = [];
+let recordMime = 'video/webm';
+let recordStartTime = 0;
+let recordTimerId = null;
+let isRecording = false;
+let recMode = null; // 'webcodecs' | 'webm'
+
+let videoEncoder = null;
+let recMuxer = null;
+let recFrameCount = 0;
+let recEncoderConfig = null;
+let mp4MuxerModule = null;
+let ffmpegInstance = null;
+let isProcessingRecording = false;
+
+const AVC_CODEC_CANDIDATES = [
+  'avc1.640028',
+  'avc1.4D4028',
+  'avc1.42001E',
+];
+
+function formatRecTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+
+function setRecStatus(msg) {
+  const el = document.getElementById('rec-status');
+  if (el) el.textContent = msg ? ' · ' + msg : '';
+}
+
+function updateRecordUI(recording) {
+  isRecording = recording;
+  const ind = document.getElementById('rec-indicator');
+  const startBtn = document.getElementById('recStartBtn');
+  const stopBtn = document.getElementById('recStopBtn');
+  if (ind) {
+    ind.classList.toggle('active', recording || isProcessingRecording);
+    ind.setAttribute('aria-hidden', (recording || isProcessingRecording) ? 'false' : 'true');
+  }
+  if (startBtn) startBtn.disabled = recording || isProcessingRecording;
+  if (stopBtn) stopBtn.disabled = !recording;
+  if (!recording && !isProcessingRecording && recordTimerId) {
+    clearInterval(recordTimerId);
+    recordTimerId = null;
+    const t = document.getElementById('rec-time');
+    if (t) t.textContent = '0:00';
+    setRecStatus('');
+  }
+}
+
+function tickRecTime() {
+  const el = document.getElementById('rec-time');
+  if (el && isRecording) el.textContent = formatRecTime(Date.now() - recordStartTime);
+}
+
+function downloadBlob(blob, filename) {
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+}
+
+function evenDim(n) { return Math.max(2, n & ~1); }
+
+async function getMp4Muxer() {
+  if (!mp4MuxerModule) {
+    mp4MuxerModule = await import('./vendor/mp4-muxer/mp4-muxer.mjs');
+  }
+  return mp4MuxerModule;
+}
+
+async function probeAvcEncoderConfig() {
+  if (encoderConfigCache !== undefined) return encoderConfigCache;
+  encoderConfigCache = null;
+  if (!window.VideoEncoder) return null;
+  const width = evenDim(W);
+  const height = evenDim(H);
+  for (const codec of AVC_CODEC_CANDIDATES) {
+    const config = {
+      codec,
+      width,
+      height,
+      bitrate: 8_000_000,
+      framerate: 60,
+    };
+    try {
+      const { supported } = await VideoEncoder.isConfigSupported(config);
+      if (supported) {
+        encoderConfigCache = config;
+        return config;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+function ffmpegAsset(file) {
+  return new URL('vendor/ffmpeg/' + file, window.location.href).href;
+}
+
+function loadFfmpegScript() {
+  if (window.FFmpegWASM) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/ffmpeg/ffmpeg.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('vendor/ffmpeg/ffmpeg.js を読み込めません'));
+    document.head.appendChild(s);
+  });
+}
+
+async function getFfmpeg() {
+  if (ffmpegInstance) return ffmpegInstance;
+  await loadFfmpegScript();
+  if (!window.FFmpegWASM) throw new Error('ffmpeg.wasm の読み込みに失敗しました');
+  const { FFmpeg } = FFmpegWASM;
+  const ffmpeg = new FFmpeg();
+  ffmpeg.on('log', () => {});
+  await ffmpeg.load({
+    coreURL: ffmpegAsset('ffmpeg-core.js'),
+    wasmURL: ffmpegAsset('ffmpeg-core.wasm'),
+    workerURL: ffmpegAsset('ffmpeg-core.worker.js'),
+  });
+  ffmpegInstance = ffmpeg;
+  return ffmpeg;
+}
+
+async function transcodeWebmToH264Mp4(webmBlob) {
+  setRecStatus('H.264 変換中…');
+  const ffmpeg = await getFfmpeg();
+  const input = new Uint8Array(await webmBlob.arrayBuffer());
+  await ffmpeg.writeFile('input.webm', input);
+  try {
+    await ffmpeg.exec([
+      '-i', 'input.webm', '-an',
+      '-c:v', 'libx264',
+      '-preset', 'fast', '-crf', '23',
+      '-pix_fmt', 'yuv420p',
+      '-movflags', '+faststart',
+      'output.mp4',
+    ]);
+  } catch (_) {
+    await ffmpeg.deleteFile('input.webm').catch(() => {});
+    throw new Error('H.264 MP4 への変換に失敗しました。ページを再読み込みしてお試しください。');
+  }
+  const out = await ffmpeg.readFile('output.mp4');
+  await ffmpeg.deleteFile('input.webm').catch(() => {});
+  await ffmpeg.deleteFile('output.mp4').catch(() => {});
+  return new Blob([out.buffer], { type: 'video/mp4' });
+}
+
+async function startRecordingWebCodecs(encoderConfig) {
+  const { Muxer, ArrayBufferTarget } = await getMp4Muxer();
+  const width = encoderConfig.width;
+  const height = encoderConfig.height;
+
+  recMuxer = new Muxer({
+    target: new ArrayBufferTarget(),
+    video: { codec: 'avc', width, height },
+    fastStart: 'in-memory',
+  });
+
+  videoEncoder = new VideoEncoder({
+    output: (chunk, meta) => recMuxer.addVideoChunk(chunk, meta),
+    error: e => console.error('VideoEncoder:', e),
+  });
+
+  videoEncoder.configure(encoderConfig);
+  recEncoderConfig = encoderConfig;
+  recMode = 'webcodecs';
+  recFrameCount = 0;
+  recordStartTime = performance.now();
+  updateRecordUI(true);
+  setRecStatus('H.264 録画中');
+  tickRecTime();
+  recordTimerId = setInterval(tickRecTime, 250);
+}
+
+function captureRecordingFrame() {
+  if (recMode !== 'webcodecs' || !videoEncoder || videoEncoder.state !== 'configured') return;
+  try {
+    const ts = Math.round((performance.now() - recordStartTime) * 1000);
+    const frame = new VideoFrame(canvas, {
+      timestamp: ts,
+      duration: Math.round(1e6 / 60),
+    });
+    videoEncoder.encode(frame, { keyFrame: recFrameCount % 60 === 0 });
+    frame.close();
+    recFrameCount++;
+  } catch (_) {}
+}
+
+async function finishWebCodecsRecording() {
+  isProcessingRecording = true;
+  updateRecordUI(false);
+  setRecStatus('MP4 書き出し中…');
+  try {
+    if (videoEncoder && videoEncoder.state === 'configured') {
+      await videoEncoder.flush();
+      videoEncoder.close();
+    }
+    videoEncoder = null;
+    if (recMuxer) {
+      recMuxer.finalize();
+      const buffer = recMuxer.target.buffer;
+      downloadBlob(new Blob([buffer], { type: 'video/mp4' }), 'locus-' + Date.now() + '.mp4');
+      recMuxer = null;
+    }
+  } catch (e) {
+    alert('MP4 の書き出しに失敗しました: ' + e.message);
+  } finally {
+    recMode = null;
+    recEncoderConfig = null;
+    isProcessingRecording = false;
+    updateRecordUI(false);
+  }
+}
+
+function pickRecordMime() {
+  const types = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+function startRecordingWebM() {
+  recordChunks = [];
+  recordStream = canvas.captureStream(60);
+  recordMime = pickRecordMime();
+  const opts = { videoBitsPerSecond: 12_000_000 };
+  if (recordMime) opts.mimeType = recordMime;
+  try {
+    mediaRecorder = new MediaRecorder(recordStream, opts);
+  } catch (_) {
+    mediaRecorder = new MediaRecorder(recordStream);
+    recordMime = 'video/webm';
+  }
+
+  mediaRecorder.ondataavailable = ev => {
+    if (ev.data && ev.data.size) recordChunks.push(ev.data);
+  };
+  mediaRecorder.onerror = () => {
+    alert('録画中にエラーが発生しました。');
+    stopRecording();
+  };
+
+  recMode = 'webm';
+  mediaRecorder.start(250);
+  recordStartTime = Date.now();
+  updateRecordUI(true);
+  setRecStatus('録画中（停止後 H.264 変換）');
+  tickRecTime();
+  recordTimerId = setInterval(tickRecTime, 250);
+}
+
+async function finishWebmRecording() {
+  if (recordStream) {
+    recordStream.getTracks().forEach(t => t.stop());
+    recordStream = null;
+  }
+  const type = recordMime || 'video/webm';
+  if (!recordChunks.length) {
+    recMode = null;
+    updateRecordUI(false);
+    return;
+  }
+  const webmBlob = new Blob(recordChunks, { type });
+  recordChunks = [];
+  mediaRecorder = null;
+  recMode = null;
+
+  isProcessingRecording = true;
+  updateRecordUI(false);
+  try {
+    const mp4 = await transcodeWebmToH264Mp4(webmBlob);
+    downloadBlob(mp4, 'locus-' + Date.now() + '.mp4');
+  } catch (e) {
+    alert(e.message || String(e));
+  } finally {
+    isProcessingRecording = false;
+    updateRecordUI(false);
+  }
+}
+
+async function startRecording() {
+  if (isRecording || isProcessingRecording) return;
+
+  const avc = await probeAvcEncoderConfig();
+  if (avc) {
+    await startRecordingWebCodecs(avc);
+    return;
+  }
+
+  if (!window.MediaRecorder || !canvas.captureStream) {
+    alert('このブラウザでは録画に対応していません。\nChrome / Firefox / Safari の最新版をお試しください。');
+    return;
+  }
+
+  startRecordingWebM();
+}
+
+function stopRecording() {
+  if (recMode === 'webcodecs') {
+    isRecording = false;
+    finishWebCodecsRecording();
+    return;
+  }
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    isRecording = false;
+    mediaRecorder.onstop = () => { finishWebmRecording(); };
+    mediaRecorder.stop();
+    return;
+  }
+  if (recordStream) {
+    recordStream.getTracks().forEach(t => t.stop());
+    recordStream = null;
+  }
+  updateRecordUI(false);
+}
+
+window.addEventListener('beforeunload', e => {
+  if (isRecording || isProcessingRecording) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+function exportPng() {
+  const a=document.createElement('a');
+  a.download='locus-'+Date.now()+'.png';
+  a.href=canvas.toDataURL('image/png');
+  a.click();
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(settingsSnapshot(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = 'locus-settings-' + Date.now() + '.json';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importJsonFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      applySettingsSnapshot(JSON.parse(reader.result));
+    } catch (err) { alert('設定の読み込みに失敗しました: ' + err.message); }
+  };
+  reader.readAsText(file);
+}
+
+// ─── Demo mode ───────────────────────────────────────────────────────
+const DEMO_BANNER_MS = 5000;
+const DEMO_CYCLE_SEC = 30;
+
+let demoActive = false;
+let demoBannerTimer = null;
+let demoCycleTimer = null;
+let demoFirstPlayTimer = null;
+let demoCountdownEnd = 0;
+let demoCountdownRaf = null;
+
+function showDemoBanner() {
+  const el = document.getElementById('demo-banner');
+  if (el) {
+    el.classList.add('visible');
+    el.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function hideDemoBanner() {
+  const el = document.getElementById('demo-banner');
+  if (el) {
+    el.classList.remove('visible');
+    el.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function showDemoCountdown() {
+  const el = document.getElementById('demo-countdown');
+  if (el) {
+    el.classList.add('visible');
+    el.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function hideDemoCountdown() {
+  const el = document.getElementById('demo-countdown');
+  if (el) {
+    el.classList.remove('visible');
+    el.textContent = '';
+    el.setAttribute('aria-hidden', 'true');
+  }
+  if (demoCountdownRaf != null) {
+    cancelAnimationFrame(demoCountdownRaf);
+    demoCountdownRaf = null;
+  }
+}
+
+function resetDemoCountdown() {
+  demoCountdownEnd = Date.now() + DEMO_CYCLE_SEC * 1000;
+  showDemoCountdown();
+  if (demoCountdownRaf == null) tickDemoCountdown();
+}
+
+function tickDemoCountdown() {
+  if (!demoActive) {
+    demoCountdownRaf = null;
+    return;
+  }
+  const el = document.getElementById('demo-countdown');
+  const remain = Math.max(0, Math.ceil((demoCountdownEnd - Date.now()) / 1000));
+  if (el) el.textContent = String(remain);
+  demoCountdownRaf = requestAnimationFrame(tickDemoCountdown);
+}
+
+function stopDemo() {
+  if (!demoActive) return;
+  demoActive = false;
+  if (demoBannerTimer) clearTimeout(demoBannerTimer);
+  if (demoCycleTimer) clearInterval(demoCycleTimer);
+  if (demoFirstPlayTimer) clearTimeout(demoFirstPlayTimer);
+  demoBannerTimer = demoCycleTimer = demoFirstPlayTimer = null;
+  hideDemoBanner();
+  hideDemoCountdown();
+}
+
+function runRandomDemoPlayback() {
+  if (!demoActive || batchActive || isRecording) return;
+  const count = rndInt(2, 3);
+  shapes.length = 0;
+  buildRandomInitialShapes(count).forEach(s => {
+    if (s) shapes.push(s);
+  });
+  collapseLegacyDupTabs();
+  PAIRS = computePairs();
+  activeTabIdx = 0;
+  view.scale = 1;
+  view.panX = 0;
+  view.panY = 0;
+  shapes.forEach(s => { s.paused = false; s.angle = 0; });
+  clearTrails();
+  clearSimHistory();
+  buildUI();
+  updatePlaybackUI();
+  resetDemoCountdown();
+}
+
+function isDemoCancelIgnoredEvent(e) {
+  const t = e && e.target;
+  return t && typeof t.closest === 'function'
+    && t.closest('#sound-prefs-modal, .pair-fx-panel');
+}
+
+function armDemoCancellation() {
+  const cancel = e => {
+    if (e && e.isTrusted === false) return;
+    if (isDemoCancelIgnoredEvent(e)) return;
+    stopDemo();
+  };
+  ['pointerdown', 'keydown', 'wheel'].forEach(ev => {
+    window.addEventListener(ev, cancel, { capture: true, passive: ev === 'wheel' });
+  });
+}
+
+function dismissSoundPrefsModal(enableSound) {
+  const modal = document.getElementById('sound-prefs-modal');
+  setAllPairsSoundEnabled(!!enableSound);
+  if (modal) {
+    modal.classList.remove('visible');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  if (pairFxEditorRefresh) pairFxEditorRefresh();
+  if (!demoActive) startDemoMode();
+}
+
+function showSoundPrefsModal() {
+  const modal = document.getElementById('sound-prefs-modal');
+  const offBtn = document.getElementById('soundPrefOff');
+  const onBtn = document.getElementById('soundPrefOn');
+  if (!modal || !offBtn || !onBtn) {
+    startDemoMode();
+    return;
+  }
+  modal.classList.add('visible');
+  modal.setAttribute('aria-hidden', 'false');
+  const pick = enableSound => {
+    offBtn.classList.toggle('active-choice', !enableSound);
+    onBtn.classList.toggle('active-choice', enableSound);
+    dismissSoundPrefsModal(enableSound);
+  };
+  offBtn.addEventListener('click', () => pick(false), { once: true });
+  onBtn.addEventListener('click', () => pick(true), { once: true });
+}
+
+function startDemoMode() {
+  if (demoActive) return;
+  demoActive = true;
+  armDemoCancellation();
+  showDemoBanner();
+  demoBannerTimer = setTimeout(() => {
+    if (demoActive) hideDemoBanner();
+  }, DEMO_BANNER_MS);
+  demoFirstPlayTimer = setTimeout(() => {
+    if (demoActive) runRandomDemoPlayback();
+  }, DEMO_BANNER_MS);
+  demoCycleTimer = setInterval(() => {
+    if (demoActive) runRandomDemoPlayback();
+  }, DEMO_CYCLE_SEC * 1000);
+}
+
+// ─── Startup ─────────────────────────────────────────────────────────
+try {
+  loadTrailSettings();
+  loadPersistedSaves();
+  syncGlobalPresetsFromNamedSaves();
+  seedBuiltinGlobalPresets();
+  initGlobalPresetThumbs();
+  applyInitialShapes();
+  PAIRS = computePairs();
+  activeTabIdx = 0;
+  clearTrails();
+  renderGlobalPresets();
+  buildUI();
+  renderSavesStrip();
+  const canvasWrap = document.getElementById('canvas-wrap');
+  if (canvasWrap) canvasWrap.addEventListener('pointerdown', unlockHitAudio, { once: true });
+  requestAnimationFrame(frame);
+  showSoundPrefsModal();
+} catch (err) {
+  console.error(err);
+  const box = document.createElement('pre');
+  box.style.cssText = 'color:#f88;padding:16px;font:12px Menlo,monospace;white-space:pre-wrap';
+  box.textContent = '起動エラー: ' + (err && err.message ? err.message : String(err));
+  document.body.appendChild(box);
+}
+
+// ─── Canvas drag ─────────────────────────────────────────────────────
+function updateHandleInputs(i) {
+  const s=shapes[i];
+  const fxEl=document.getElementById(`fx${i}`); if(fxEl) fxEl.value=Math.round(s.fx);
+  const fyEl=document.getElementById(`fy${i}`); if(fyEl) fyEl.value=Math.round(s.fy);
+  const pxEl=document.getElementById(`px${i}`); if(pxEl) pxEl.value=Math.round(s.px);
+  const pyEl=document.getElementById(`py${i}`); if(pyEl) pyEl.value=Math.round(s.py);
+}
+
+const HIT_R=11;
+function hitTest(mx,my) {
+  const sAct = shapes[activeTabIdx];
+  if (sAct && sAct.visible && isParabolaShape(sAct)) {
+    const w = parabolaWorldPoints(sAct);
+    const paraHits = [
+      { type: 'para1', p: w.p1, r: HIT_R + 3 },
+      { type: 'para2', p: w.p2, r: HIT_R },
+    ];
+    for (const h of paraHits) {
+      if (Math.hypot(mx - wx(h.p.x), my - wy(h.p.y)) < h.r) {
+        return { type: h.type, idx: activeTabIdx };
+      }
+    }
+  }
+  for(let i=0;i<shapes.length;i++){
+    const s=shapes[i]; if(!s.visible) continue;
+    const {pxc,pyc}=pivotScreen(s);
+    const centers=getDupCenters(s);
+    const primary=centers.find(c=>c.primary)||centers[0];
+    const f=centerWorldAt(s,primary.fx,primary.fy);
+    const fxc=wx(f.x), fyc=wy(f.y);
+    if(Math.hypot(mx-fxc,my-fyc)<HIT_R) return {type:'fig',idx:i};
+    if(Math.hypot(mx-pxc,my-pyc)<HIT_R) return {type:'piv',idx:i};
+  }
+  return null;
+}
+
+function applyDrag(ddx,ddy,idx) {
+  const s=shapes[idx];
+  const dw=worldDeltaFromScreen(ddx,ddy);
+  if (drag.type === 'para1' || drag.type === 'para2') {
+    const dl = worldDeltaToLocal(s, dw.x, dw.y);
+    if (drag.type === 'para1') {
+      s.parabola.p1.y += dl.y;
+    } else {
+      const cx = (s.parabola.p0.x + s.parabola.p2.x) / 2;
+      const w = Math.max(1, Math.abs(s.parabola.p2.x - cx) + dl.x * 0.5);
+      s.parabola.p0.x = cx - w;
+      s.parabola.p2.x = cx + w;
+    }
+    syncSymmetricParabola(s);
+    refreshShapeCurve(s, s.N);
+    const ftag = document.getElementById(`ftag${idx}`);
+    if (ftag) ftag.textContent = 'parabola';
+    updateShapeThumb(idx);
+    return;
+  }
+  if(drag.type==='piv'){
+    s.px+=dw.x; s.py+=dw.y;
+  } else {
+    const ca=Math.cos(s.angle), sa=Math.sin(s.angle);
+    const {fx,fy,px,py}=s;
+    const rfx=px+(fx-px)*ca-(fy-py)*sa, rfy=py+(fx-px)*sa+(fy-py)*ca;
+    const rfx2=rfx+dw.x, rfy2=rfy+dw.y;
+    s.fx=px+(rfx2-px)*ca+(rfy2-py)*sa;
+    s.fy=py-(rfx2-px)*sa+(rfy2-py)*ca;
+  }
+  updateHandleInputs(idx);
+}
+
+function endCanvasDrag() {
+  const wasShapeDrag = drag && (drag.type === 'fig' || drag.type === 'piv' || drag.type.startsWith('para'));
+  drag = null;
+  panDrag = null;
+  canvas.style.cursor = 'default';
+  if (wasShapeDrag) resetTimingAndTrails();
+}
+
+let panDrag=null;
+
+function canvasCoords(e) {
+  const r=canvas.getBoundingClientRect();
+  return {
+    mx:(e.clientX-r.left)*(W/r.width),
+    my:(e.clientY-r.top)*(H/r.height),
+  };
+}
+
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const {mx,my}=canvasCoords(e);
+  const before=screenToWorld(mx,my);
+  const factor=e.deltaY>0?0.9:1.1;
+  view.scale=Math.min(10,Math.max(0.12,view.scale*factor));
+  const after=screenToWorld(mx,my);
+  view.panX+=before.x-after.x;
+  view.panY+=before.y-after.y;
+  viewDirty=true;
+},{passive:false});
+
+canvas.addEventListener('dblclick', e=>{
+  e.preventDefault();
+  resetView();
+});
+
+canvas.addEventListener('mousedown', e=>{
+  const {mx,my}=canvasCoords(e);
+  if(e.shiftKey||e.button===1){
+    panDrag={lastX:mx,lastY:my};
+    canvas.style.cursor='move';
+    e.preventDefault();
+    return;
+  }
+  const hit=hitTest(mx,my);
+  if(hit){ drag={...hit,lastX:mx,lastY:my}; canvas.style.cursor='grabbing'; e.preventDefault(); }
+});
+canvas.addEventListener('mousemove', e=>{
+  const {mx,my}=canvasCoords(e);
+  if(panDrag){
+    const ddx=mx-panDrag.lastX, ddy=my-panDrag.lastY;
+    panDrag.lastX=mx; panDrag.lastY=my;
+    view.panX-=ddx/view.scale;
+    view.panY+=ddy/view.scale;
+    viewDirty=true;
+    return;
+  }
+  if(!drag){ canvas.style.cursor=hitTest(mx,my)?'grab':'default'; return; }
+  const ddx=mx-drag.lastX, ddy=my-drag.lastY;
+  drag.lastX=mx; drag.lastY=my;
+  applyDrag(ddx,ddy,drag.idx);
+});
+canvas.addEventListener('mouseup', endCanvasDrag);
+canvas.addEventListener('mouseleave', endCanvasDrag);
+
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length!==1) return;
+  const r=canvas.getBoundingClientRect(); const t=e.touches[0];
+  const mx=(t.clientX-r.left)*(W/r.width), my=(t.clientY-r.top)*(H/r.height);
+  const hit=hitTest(mx,my);
+  if(hit){ drag={...hit,lastX:mx,lastY:my}; e.preventDefault(); }
+},{passive:false});
+canvas.addEventListener('touchmove', e=>{
+  if(!drag||e.touches.length!==1) return;
+  e.preventDefault();
+  const r=canvas.getBoundingClientRect(); const t=e.touches[0];
+  const mx=(t.clientX-r.left)*(W/r.width), my=(t.clientY-r.top)*(H/r.height);
+  const ddx=mx-drag.lastX, ddy=my-drag.lastY;
+  drag.lastX=mx; drag.lastY=my;
+  applyDrag(ddx,ddy,drag.idx);
+},{passive:false});
+canvas.addEventListener('touchend', endCanvasDrag);
+</script>
+</body>
+</html>

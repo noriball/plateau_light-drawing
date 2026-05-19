@@ -1,0 +1,59 @@
+{
+  "version": 3,
+  "exportedAt": "2026-05-19T07:23:45.062Z",
+  "shapes": [
+    {
+      "formula": "160",
+      "tMinS": "0",
+      "tMaxS": "2*pi",
+      "N": 120,
+      "fx": 0.5917568014018805,
+      "fy": -5.351822112086978,
+      "px": -165.84743029877117,
+      "py": 0.9086742227399767,
+      "speed": 1,
+      "hue": 15,
+      "angle": 15.618399999999932,
+      "visible": true,
+      "paused": true,
+      "dupCount": 1,
+      "curveKind": "formula"
+    },
+    {
+      "formula": "155",
+      "tMinS": "0",
+      "tMaxS": "2*pi",
+      "N": 120,
+      "fx": 16.558659181297998,
+      "fy": 35.12567708110398,
+      "px": 168.36870819345415,
+      "py": 2.9467344025972135,
+      "speed": -2,
+      "hue": 185,
+      "angle": -31.236799999999864,
+      "visible": true,
+      "paused": true,
+      "dupCount": 1,
+      "curveKind": "formula"
+    }
+  ],
+  "view": {
+    "scale": 1.7017544280716117,
+    "panX": -17.954134011486786,
+    "panY": 26.38765348884877
+  },
+  "speedMul": 1,
+  "trailWidth": 5,
+  "trailDurationSec": 19.7,
+  "showGrid": true,
+  "showAxes": true,
+  "activeTabIdx": 0,
+  "pairs": [
+    {
+      "i": 0,
+      "j": 1,
+      "enabled": true,
+      "h": 52
+    }
+  ]
+}
