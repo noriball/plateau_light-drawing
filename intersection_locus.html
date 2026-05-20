@@ -355,6 +355,8 @@ html.layout-narrow #side-panel {
   .transport-transport-row .transport-btn {
     min-height:48px; font-size:20px; padding:10px 8px;
   }
+  .transport-volume-slider { min-height:32px; }
+  .transport-mute-icon { width:36px; height:36px; }
   .transport-random-btn { min-height:44px; font-size:13px; }
   .transport-utils-actions .reset-btn,
   .transport-opt-btn, .vis-btn, .reset-btn {
@@ -362,12 +364,8 @@ html.layout-narrow #side-panel {
   }
   .tab { padding:8px 12px 7px; font-size:12px; min-height:40px; }
   .tab-close { width:22px; height:22px; font-size:15px; }
-  .fx-style-thumb { width:30px; height:30px; }
   .fx-style-name { font-size:6px; }
-  .transport-fx-patterns {
-    padding-left:0; gap:3px;
-    grid-template-columns:repeat(5, minmax(0, 1fr));
-  }
+  .transport-fx-patterns { gap:4px; }
   .transport-fx-block .transport-utils-lbl {
     width:100%; min-width:0; margin-bottom:2px;
   }
@@ -441,6 +439,45 @@ button, .tab, .fx-style-btn, .gp-btn, .preset-item, .pair-row, .details-tab, .co
   background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08);
   color:rgba(255,255,255,.35);
 }
+.transport-volume-row {
+  width:100%; padding:2px 0 8px; box-sizing:border-box;
+}
+.transport-volume-controls {
+  display:flex; align-items:center; gap:8px; width:100%;
+}
+.transport-volume-controls.is-muted .transport-volume-slider { opacity:.45; }
+.transport-volume-slider-wrap {
+  flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;
+}
+.transport-volume-lbl {
+  font-size:10px; color:var(--text-soft); letter-spacing:.1em; user-select:none;
+}
+.transport-volume-slider-row {
+  display:flex; align-items:center; gap:6px; width:100%; min-width:0;
+}
+.transport-volume-slider-mark {
+  flex-shrink:0; font-size:9px; color:rgba(200,220,255,.78);
+  letter-spacing:.04em; user-select:none; line-height:1;
+}
+.transport-volume-slider {
+  flex:1; min-width:0; min-height:28px; margin:0; cursor:pointer;
+  accent-color:#8ab4ff;
+}
+.transport-mute-btn {
+  flex:0 0 auto; padding:2px; margin:0; border:none; background:transparent;
+  box-shadow:none; line-height:0; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(220,235,255,.95); -webkit-appearance:none; appearance:none;
+}
+.transport-mute-btn:hover { background:transparent; color:#fff; opacity:.9; }
+.transport-mute-btn.is-muted { color:#f99; background:transparent; border:none; }
+.transport-mute-icon {
+  display:block; width:32px; height:32px; flex-shrink:0;
+  filter:drop-shadow(0 0 4px rgba(140,180,255,.35));
+}
+.transport-mute-btn.is-muted .transport-mute-icon {
+  filter:drop-shadow(0 0 5px rgba(255,120,120,.45));
+}
 .transport-random-row { width:100%; }
 .transport-random-btn {
   width:100%; min-height:40px; padding:10px 14px;
@@ -498,33 +535,37 @@ button, .tab, .fx-style-btn, .gp-btn, .preset-item, .pair-row, .details-tab, .co
   background:rgba(255,255,255,.1); color:var(--text);
 }
 .transport-fx-block {
-  display:flex; flex-direction:column; gap:4px;
+  display:flex; flex-direction:column; gap:4px; width:100%; min-width:0;
 }
+.pair-fx-panel .transport-fx-block { width:100%; }
 .transport-fx-block .transport-utils-lbl { min-width:4.6em; }
 .transport-fx-block.fx-disabled .transport-fx-patterns {
   opacity:.3; pointer-events:none;
 }
 .transport-fx-patterns {
   display:grid; grid-template-columns:repeat(5, minmax(0, 1fr));
-  gap:4px; padding:0 0 4px 3.9em; width:100%; box-sizing:border-box;
+  gap:5px; padding:0 0 4px; width:100%; box-sizing:border-box;
 }
 .fx-style-btn {
-  display:flex; flex-direction:column; align-items:center; gap:2px;
-  padding:3px 2px; border-radius:4px;
+  display:flex; flex-direction:column; align-items:stretch; gap:2px;
+  width:100%; min-width:0;
+  padding:2px 1px 3px; border-radius:4px;
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.1);
-  color:var(--text-soft); font:inherit; cursor:pointer; min-width:0;
+  color:var(--text-soft); font:inherit; cursor:pointer;
+  box-sizing:border-box;
 }
 .fx-style-btn:hover { background:rgba(255,255,255,.09); color:var(--text); }
 .fx-style-btn.active-choice {
   border-color:rgba(160,180,255,.45); background:rgba(160,180,255,.12); color:var(--text);
 }
 .fx-style-thumb {
-  display:block; width:34px; height:34px; border-radius:3px;
-  border:1px solid rgba(255,255,255,.08); image-rendering:pixelated;
+  display:block; width:100%; max-width:100%; height:auto; aspect-ratio:1;
+  border-radius:3px; border:1px solid rgba(255,255,255,.08);
+  image-rendering:pixelated; object-fit:contain;
 }
 .fx-style-name {
   font-size:7px; line-height:1.1; text-align:center;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .card-details {
   display:none; flex-direction:column; gap:7px;
@@ -1625,6 +1666,8 @@ function makeShape(d) {
   let pts=null,isPolar=true,error=null;
   const shape = {
     ...d, tMin, tMax,
+    presetId: d.presetId || null,
+    presetFieldVals: d.presetFieldVals ? { ...d.presetFieldVals } : null,
     curveKind,
     parabola: d.parabola ? {
       p0: { ...d.parabola.p0 },
@@ -1914,9 +1957,33 @@ function parabolaPresetDefaults(shape) {
 
 const PRESET_CATALOG = [
   { type: 'freehand', id: 'freehand', presetKey: 'freehand', name: '自由記述', stroke: 'rgba(180,195,255,.9)' },
-  { type: 'simple', presetKey: 'line', name: '直線', formula: 't, 0', tMinS: '-160', tMaxS: '160', N: 2, stroke: 'rgba(220,225,255,.92)' },
-  { type: 'simple', presetKey: 'circle', name: '円', formula: '155', tMinS: '0', tMaxS: '2*pi', N: 120, stroke: 'rgba(100,210,255,.92)' },
-  { type: 'simple', presetKey: 'astroid', name: 'アステロイド', formula: 'pow(cos(t),3)*155, pow(sin(t),3)*155', tMinS: '0', tMaxS: '2*pi', N: 200, stroke: 'rgba(255,185,110,.92)' },
+  {
+    type: 'config', id: 'line', presetKey: 'line', name: '直線', stroke: 'rgba(220,225,255,.92)',
+    fields: [{ id: 'half', labelKey: 'preset.field.half', kind: 'number', def: 160, min: 25, max: 280 }],
+    resolve(v) {
+      const half = Math.max(20, parseFloat(v.half) || 160);
+      return { formula: 't, 0', tMinS: String(-half), tMaxS: String(half), N: 2 };
+    },
+  },
+  {
+    type: 'config', id: 'circle', presetKey: 'circle', name: '円', stroke: 'rgba(100,210,255,.92)',
+    fields: [{ id: 'r', label: 'R', kind: 'number', def: 155, min: 20, max: 280 }],
+    resolve(v) {
+      const r = Math.max(15, parseFloat(v.r) || 155);
+      return { formula: String(r), tMinS: '0', tMaxS: '2*pi', N: Math.max(72, Math.min(220, Math.round(r * 0.85))) };
+    },
+  },
+  {
+    type: 'config', id: 'astroid', presetKey: 'astroid', name: 'アステロイド', stroke: 'rgba(255,185,110,.92)',
+    fields: [{ id: 'r', label: 'R', kind: 'number', def: 155, min: 25, max: 260 }],
+    resolve(v) {
+      const r = Math.max(20, parseFloat(v.r) || 155);
+      return {
+        formula: `pow(cos(t),3)*${r}, pow(sin(t),3)*${r}`,
+        tMinS: '0', tMaxS: '2*pi', N: Math.max(120, Math.min(260, Math.round(r * 1.2))),
+      };
+    },
+  },
   {
     type: 'config', id: 'star', presetKey: 'star', name: '星', stroke: 'rgba(255,220,110,.95)',
     fields: [
@@ -2039,6 +2106,99 @@ function defaultPresetFieldValues(spec, shape) {
   return vals;
 }
 
+function guessPresetIdFromShape(shape) {
+  if (!shape) return null;
+  if (shape.curveKind === 'parabola' && shape.parabola) return 'parabola';
+  const f = String(shape.formula || '').replace(/\s/g, '');
+  if (!f) return shape.presetId || null;
+  if (/^[\d.]+$/.test(f)) return 'circle';
+  if (/^starX\s*\(/i.test(f)) return 'star';
+  if (/^poly\s*\(/i.test(f)) return 'poly';
+  if (/(?:^|(?:\*\s*))[\d.]+\*(?:cos|sin)\(\d+\*t\)/i.test(f)
+    || /(?:cos|sin)\(\d+\*t\)\*[\d.]+/i.test(f)) return 'rose';
+  if (/^pow\s*\(\s*cos\s*\(\s*t/i.test(f) && /pow\s*\(\s*sin\s*\(\s*t/i.test(f)) return 'astroid';
+  if (/^t\s*,/i.test(f) || /^t,/.test(f)) return 'line';
+  return shape.presetId || null;
+}
+
+function parseRoseFieldValues(shape) {
+  const f = String(shape.formula || '').replace(/\s/g, '');
+  let mode = 'cos';
+  let k = '3';
+  let a = '160';
+  let m = f.match(/^([\d.]+)\*(cos|sin)\((\d+)\*t\)$/i);
+  if (m) {
+    a = m[1]; mode = m[2].toLowerCase(); k = m[3];
+  } else {
+    m = f.match(/^(cos|sin)\((\d+)\*t\)\*([\d.]+)$/i);
+    if (!m) return null;
+    mode = m[1].toLowerCase(); k = m[2]; a = m[3];
+  }
+  return {
+    mode,
+    k,
+    a,
+    tmax: shape.tMaxS != null ? String(shape.tMaxS) : 'pi',
+  };
+}
+
+function parseStarFieldValues(shape) {
+  const f = String(shape.formula || '').replace(/\s/g, '');
+  const m = f.match(/^starX\((\d+),(\d+),([\d.]+),t\)/i);
+  if (!m) return null;
+  return { n: m[1], r: m[3] };
+}
+
+function parsePolyFieldValues(shape) {
+  const f = String(shape.formula || '').replace(/\s/g, '');
+  const m = f.match(/^poly\((\d+),([\d.]+),t\)/i);
+  if (!m) return null;
+  return { n: m[1], r: m[2] };
+}
+
+function parseCircleFieldValues(shape) {
+  const f = String(shape.formula || '').trim();
+  if (!/^[\d.]+$/.test(f)) return null;
+  return { r: f };
+}
+
+function parseLineFieldValues(shape) {
+  const f = String(shape.formula || '').replace(/\s/g, '');
+  if (!/^t,0$/i.test(f) && !/^t\s*,\s*0$/i.test(String(shape.formula || ''))) return null;
+  const tMin = parseT(shape.tMinS);
+  const tMax = parseT(shape.tMaxS);
+  if (!Number.isFinite(tMin) || !Number.isFinite(tMax)) return null;
+  const half = Math.max(Math.abs(tMin), Math.abs(tMax));
+  return { half: String(Math.round(half)) };
+}
+
+function parseAstroidFieldValues(shape) {
+  const f = String(shape.formula || '').replace(/\s/g, '');
+  const m = f.match(/^pow\(cos\(t\),3\)\*([\d.]+),pow\(sin\(t\),3\)\*([\d.]+)/i);
+  if (!m) return null;
+  return { r: m[1] };
+}
+
+function inferPresetFieldValuesFromShape(spec, shape) {
+  if (!shape || !spec?.fields) return null;
+  if (shape.presetFieldVals && shape.presetId === spec.id) {
+    return { ...shape.presetFieldVals };
+  }
+  if (spec.id === 'rose') return parseRoseFieldValues(shape);
+  if (spec.id === 'star') return parseStarFieldValues(shape);
+  if (spec.id === 'poly') return parsePolyFieldValues(shape);
+  if (spec.id === 'circle') return parseCircleFieldValues(shape);
+  if (spec.id === 'line') return parseLineFieldValues(shape);
+  if (spec.id === 'astroid') return parseAstroidFieldValues(shape);
+  if (spec.mode === 'parabola') return parabolaPresetDefaults(shape);
+  return null;
+}
+
+function presetFieldValuesForPanel(spec, shape) {
+  return inferPresetFieldValuesFromShape(spec, shape)
+    || defaultPresetFieldValues(spec, shape);
+}
+
 function buildFreehandPresetThumb() {
   const cv = document.createElement('canvas');
   cv.width = cv.height = 38;
@@ -2140,8 +2300,19 @@ function randomShapeLayoutInView() {
   };
 }
 
+const ROSE_K_CHOICES = [2, 3, 4, 5, 6, 7];
+const ROSE_TMAX_CHOICES = ['pi/2', 'pi', '3*pi/2', '2*pi'];
+const STAR_N_CHOICES = [5, 6, 7, 8, 9, 10, 11, 12, 14, 16];
+const POLY_N_CHOICES = [3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 24];
+
+function randomRadiusForPreset(tight, mr, looseMin, looseMax) {
+  if (tight) return rndInt(Math.max(12, Math.floor(mr * 0.32)), mr);
+  return rndInt(looseMin, looseMax);
+}
+
 function randomPresetFieldValues(spec, tight) {
   const vals = {};
+  const mr = tight ? maxRandomCurveRadius() : null;
   (spec.fields || []).forEach(f => {
     if (f.kind === 'select') {
       const opts = f.options || [['cos', 'cos']];
@@ -2150,8 +2321,7 @@ function randomPresetFieldValues(spec, tight) {
       let min = f.min != null ? f.min : 1;
       let max = f.max != null ? f.max : 160;
       if (tight && (f.id === 'r' || f.id === 'a')) {
-        const mr = maxRandomCurveRadius();
-        min = Math.floor(mr * 0.5);
+        min = Math.max(1, Math.floor(mr * 0.35));
         max = mr;
       }
       vals[f.id] = String(rndInt(min, max));
@@ -2162,48 +2332,43 @@ function randomPresetFieldValues(spec, tight) {
     } else if (f.id === 'x') {
       vals[f.id] = 't';
     } else if (f.id === 'y') {
-      vals[f.id] = pickRandom(['5-t^2', 't^2-5', 'sin(t)*6', 'cos(t)*5', '-0.2*t^2+6', 't*0.4']);
+      vals[f.id] = pickRandom(['5-t^2', 't^2-5', 'sin(t)*6', 'cos(t)*5', '-0.2*t^2+6', 't*0.4', 'sin(t)*8', 'cos(t)*7']);
     } else if (spec.id === 'parabola' && f.id === 'w') {
-      vals.w = String(tight ? rndInt(6, 14) : rndInt(8, 20));
+      vals.w = String(tight ? rndInt(6, 16) : rndInt(8, 24));
     } else if (spec.id === 'parabola' && f.id === 'h') {
-      const hMax = tight ? 10 : 14;
+      const hMax = tight ? 12 : 18;
       vals.h = String(rndInt(3, hMax) * (Math.random() < 0.5 ? 1 : -1));
     } else {
       vals[f.id] = String(f.def ?? '');
     }
   });
-  if (spec.id === 'rose') {
-    vals.tmax = Math.random() < 0.5 ? 'pi' : '2*pi';
+  if (spec.id === 'line') {
+    vals.half = String(randomRadiusForPreset(tight, mr, 55, 240));
+  } else if (spec.id === 'circle') {
+    vals.r = String(randomRadiusForPreset(tight, mr, 40, 210));
+  } else if (spec.id === 'astroid') {
+    vals.r = String(randomRadiusForPreset(tight, mr, 45, 220));
+  } else if (spec.id === 'star') {
+    vals.n = String(pickRandom(STAR_N_CHOICES));
+    vals.r = String(randomRadiusForPreset(tight, mr, 50, 200));
+  } else if (spec.id === 'poly') {
+    vals.n = String(pickRandom(POLY_N_CHOICES));
+    vals.r = String(randomRadiusForPreset(tight, mr, 45, 195));
+  } else if (spec.id === 'rose') {
+    vals.k = String(pickRandom(ROSE_K_CHOICES));
+    vals.mode = pickRandom(['cos', 'sin'])[0];
+    vals.tmax = pickRandom(ROSE_TMAX_CHOICES);
+    vals.a = String(randomRadiusForPreset(tight, mr, 35, 200));
   }
   return vals;
 }
 
-function randomSimplePresetCurve(spec, tight) {
-  const r = tight
-    ? rndInt(Math.floor(maxRandomCurveRadius() * 0.45), maxRandomCurveRadius())
-    : rndInt(90, 175);
-  if (spec.presetKey === 'circle') {
-    return { formula: String(r), tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: rndInt(90, 150) };
-  }
-  if (spec.presetKey === 'line') {
-    const half = tight
-      ? rndInt(35, Math.max(50, maxRandomCurveRadius()))
-      : rndInt(100, 200);
-    return { formula: spec.formula, tMinS: String(-half), tMaxS: String(half), N: 2 };
-  }
-  if (spec.presetKey === 'astroid') {
-    return {
-      formula: `pow(cos(t),3)*${r}, pow(sin(t),3)*${r}`,
-      tMinS: spec.tMinS,
-      tMaxS: spec.tMaxS,
-      N: rndInt(150, 220),
-    };
-  }
-  return { formula: spec.formula, tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: spec.N };
-}
-
 function presetPoolForRandom() {
   return PRESET_CATALOG.filter(s => s.type !== 'freehand');
+}
+
+function presetIdForSpec(spec) {
+  return spec.id || spec.presetKey || null;
 }
 
 function makeShapeFromPresetSpec(spec, hue, layoutFn = randomShapeLayout) {
@@ -2211,11 +2376,9 @@ function makeShapeFromPresetSpec(spec, hue, layoutFn = randomShapeLayout) {
   const tight = layoutFn === randomShapeLayoutInView;
   const layout = layoutFn();
   layout.hue = hue;
-  if (spec.type === 'simple') {
-    Object.assign(layout, randomSimplePresetCurve(spec, tight), { curveKind: 'formula', parabola: null });
-    return makeShape(layout);
-  }
+  layout.presetId = presetIdForSpec(spec);
   const vals = randomPresetFieldValues(spec, tight);
+  layout.presetFieldVals = { ...vals };
   if (spec.mode === 'parabola') {
     const v = spec.resolve(vals);
     const shape = makeShape({ ...layout, curveKind: 'parabola', parabola: null });
@@ -2308,10 +2471,16 @@ function applyRandomPlayback(opts = {}) {
   PAIRS = computePairs();
   assignRandomPairEffects();
   activeTabIdx = 0;
-  shapes.forEach(s => { s.paused = false; s.angle = 0; });
+  shapes.forEach((s, i) => {
+    s.paused = false;
+    s.angle = 0;
+    if (i === 0 && guessPresetIdFromShape(s)) s._syncPresetPanelOnBuild = true;
+  });
   clearTrails();
   clearSimHistory();
+  shapeDetailsExpanded = true;
   buildUI({ keepChrome: true });
+  updateShapeDetailsExpanded();
   updatePlaybackUI();
   if (opts.fromDemo) resetDemoCountdown();
 }
@@ -2327,11 +2496,17 @@ function applyInitialShapes() {
   collapseLegacyDupTabs();
 }
 
-function applyPresetConfig(shapeIdx, spec, applyFormula) {
+function applyPresetConfig(shapeIdx, spec, applyFormula, opts = {}) {
+  const shape = shapes[shapeIdx];
   if (spec.type === 'simple') {
     applyFormula(spec.formula, spec.tMinS, spec.tMaxS, spec.N);
+    if (shape) shape.presetId = presetIdForSpec(spec);
   } else {
     const vals = readPresetFields(shapeIdx, spec);
+    if (shape) {
+      shape.presetId = spec.id;
+      shape.presetFieldVals = { ...vals };
+    }
     if (spec.mode === 'parabola') {
       applyParabolaFromPanel(shapeIdx, vals);
     } else {
@@ -2339,8 +2514,10 @@ function applyPresetConfig(shapeIdx, spec, applyFormula) {
       applyFormula(formula, tMinS, tMaxS, N);
     }
   }
-  resetPlaybackAfterPreset();
-  fitViewToShapes(0.12);
+  if (!opts.skipFit) {
+    resetPlaybackAfterPreset();
+    fitViewToShapes(0.12);
+  }
 }
 
 function applyParabolaFromPanel(i, vals) {
@@ -2388,8 +2565,13 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
   title.textContent = L('shape.presetSettings', { name: presetLabel(spec) });
   panel.appendChild(title);
 
-  const fieldVals = defaultPresetFieldValues(spec, shape);
-  const runApply = () => applyPresetConfig(shapeIdx, spec, applyFormula);
+  const fieldVals = presetFieldValuesForPanel(spec, shape);
+  let applyTimer = null;
+  const runApply = (opts) => applyPresetConfig(shapeIdx, spec, applyFormula, opts);
+  const scheduleApply = () => {
+    clearTimeout(applyTimer);
+    applyTimer = setTimeout(() => runApply({ skipFit: true }), 280);
+  };
 
   spec.fields.forEach(f => {
     const row = document.createElement('div');
@@ -2410,6 +2592,7 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
         if (val === (fieldVals[f.id] ?? f.def)) opt.selected = true;
         el.appendChild(opt);
       });
+      el.addEventListener('change', () => scheduleApply());
     } else {
       el = document.createElement('input');
       el.id = psId(shapeIdx, spec.id, f.id);
@@ -2418,6 +2601,8 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
       if (f.min != null) el.min = String(f.min);
       if (f.max != null) el.max = String(f.max);
       if (f.wide) el.className = 'wide';
+      el.addEventListener('input', () => scheduleApply());
+      el.addEventListener('change', () => runApply({ skipFit: true }));
     }
     el.addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); runApply(); }
@@ -2430,15 +2615,29 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
   applyBtn.type = 'button';
   applyBtn.className = 'apply-ps';
   applyBtn.textContent = L('shape.apply');
-  applyBtn.addEventListener('click', runApply);
+  applyBtn.addEventListener('click', () => runApply());
   panel.appendChild(applyBtn);
 }
 
 function selectConfigPreset(strip, shapeIdx, spec, shape, applyFormula) {
+  if (shape) shape.presetId = spec.id;
   strip.querySelectorAll('.p-item').forEach(el => {
     el.classList.toggle('p-item-selected', el.dataset.presetId === spec.id);
   });
   buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula);
+}
+
+function syncPresetPanelForShape(shapeIdx, applyFormula) {
+  const shape = shapes[shapeIdx];
+  if (!shape) return;
+  const pid = guessPresetIdFromShape(shape);
+  if (!pid) return;
+  const spec = PRESET_CATALOG.find(s => s.id === pid);
+  if (!spec || spec.type !== 'config') return;
+  const strip = document.getElementById(`ps${shapeIdx}`);
+  if (!strip) return;
+  shape.presetId = pid;
+  selectConfigPreset(strip, shapeIdx, spec, shape, applyFormula);
 }
 
 function buildPresetStripForShape(strip, shapeIdx, shape, applyFormula, onFreehand) {
@@ -2589,7 +2788,67 @@ const lastHitFxByKey = {};
 const lastHitSoundMsByKey = {};
 let hitAudioCtx = null;
 let hitAudioMaster = null;
+const HIT_MASTER_GAIN_BASE = 0.95;
+const HIT_VOLUME_MAX = 2.5;
+let hitVolumeMul = 1.75;
+let hitVolumeMuted = false;
 const soundBuffers = {};
+
+function loadHitVolume() {
+  try {
+    const v = parseFloat(localStorage.getItem('locus_hit_volume'));
+    if (Number.isFinite(v)) hitVolumeMul = Math.max(0, Math.min(HIT_VOLUME_MAX, v));
+    hitVolumeMuted = localStorage.getItem('locus_hit_muted') === '1';
+  } catch (_) {}
+}
+
+function persistHitVolume() {
+  try {
+    localStorage.setItem('locus_hit_volume', String(hitVolumeMul));
+    localStorage.setItem('locus_hit_muted', hitVolumeMuted ? '1' : '0');
+  } catch (_) {}
+}
+
+function applyHitVolumeToBus() {
+  if (hitAudioMaster) {
+    hitAudioMaster.gain.value = hitVolumeMuted ? 0 : HIT_MASTER_GAIN_BASE * hitVolumeMul;
+  }
+}
+
+function setHitVolumeMuted(muted) {
+  hitVolumeMuted = muted;
+  applyHitVolumeToBus();
+  persistHitVolume();
+}
+
+function getHitVolumeSliderT() {
+  return hitVolumeMul / HIT_VOLUME_MAX;
+}
+
+function setHitVolumeFromSliderT(t) {
+  hitVolumeMul = Math.max(0, Math.min(HIT_VOLUME_MAX, t * HIT_VOLUME_MAX));
+  applyHitVolumeToBus();
+  persistHitVolume();
+}
+
+function muteBtnIconSvg(muted) {
+  if (muted) {
+    return '<svg class="transport-mute-icon" viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.16l2.45 2.45c.03-.2.05-.41.05-.58zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/>'
+      + '</svg>';
+  }
+  return '<svg class="transport-mute-icon" viewBox="0 0 24 24" aria-hidden="true">'
+    + '<path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.74 2.5-2.26 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>'
+    + '</svg>';
+}
+
+function syncMuteBtnUI(btn) {
+  const muted = hitVolumeMuted;
+  btn.classList.toggle('is-muted', muted);
+  btn.setAttribute('aria-pressed', String(muted));
+  btn.innerHTML = muteBtnIconSvg(muted);
+  btn.title = muted ? t('transport.unmute') : t('transport.mute');
+}
 
 /** ペンタトニック（Aマイナー.pentatonic 風）の半音オフセット */
 const PENTA_SEMI = [0, 3, 5, 7, 10];
@@ -2621,7 +2880,7 @@ function unlockHitAudio() {
 function ensureHitAudioBus(ac) {
   if (!hitAudioMaster) {
     hitAudioMaster = ac.createGain();
-    hitAudioMaster.gain.value = 0.72;
+    hitAudioMaster.gain.value = HIT_MASTER_GAIN_BASE * hitVolumeMul;
     const soft = ac.createBiquadFilter();
     soft.type = 'lowpass';
     soft.frequency.value = 7200;
@@ -2749,7 +3008,7 @@ function playIntersectionSound(key, hue, wx, wy, style, enabled) {
     const hz = worldToPentatonicHz(wx, wy, hue);
     const base = SOUND_BASE_HZ[timbre];
     const s = Math.max(60, view.scale * 100);
-    const vol = 0.052 + 0.018 * (0.5 + 0.5 * Math.sin(wx / s) * Math.cos(wy / s));
+    const vol = 0.078 + 0.028 * (0.5 + 0.5 * Math.sin(wx / s) * Math.cos(wy / s));
     const decay = timbre === 'wood' || timbre === 'pop' ? 0.12 : 0.28;
 
     if (style === 5) {
@@ -3192,7 +3451,7 @@ function buildSoundFxThumb(styleId, size) {
 
 function ensureFxStyleThumbs() {
   if (fxStyleThumbsReady) return;
-  const sz = 34;
+  const sz = 48;
   for (let id = 0; id <= 9; id++) {
     fxVisualThumbById[id] = buildVisualFxThumb(id, sz);
   }
@@ -4234,7 +4493,7 @@ function makeFxStyleThumbBtn(style, active, onSelect) {
   btn.title = t('pairs.fxTooltip', { name: style.name, desc: style.desc, sound: soundNameForVisual(style.id) });
   const thumb = document.createElement('canvas');
   thumb.className = 'fx-style-thumb';
-  thumb.width = thumb.height = 34;
+  thumb.width = thumb.height = 48;
   if (style.thumb) thumb.getContext('2d').drawImage(style.thumb, 0, 0);
   const name = document.createElement('span');
   name.className = 'fx-style-name';
@@ -4695,6 +4954,10 @@ function buildUI(opts = {}) {
     // ── Preset strip ─────────────────────────────────────────────
     const strip = card.querySelector(`#ps${i}`);
     buildPresetStripForShape(strip, i, shape, applyFormula, openShapeFormulaEditor);
+    if (shape._syncPresetPanelOnBuild) {
+      delete shape._syncPresetPanelOnBuild;
+      syncPresetPanelForShape(i, applyFormula);
+    }
 
     const detailsTab = card.querySelector(`#detailsTab${i}`);
     if (detailsTab) {
@@ -4706,6 +4969,7 @@ function buildUI(opts = {}) {
           shapeDetailsExpanded = !shapeDetailsExpanded;
         }
         updateShapeDetailsExpanded();
+        if (shapeDetailsExpanded) syncPresetPanelForShape(i, applyFormula);
       });
     }
 
@@ -4749,6 +5013,56 @@ function buildUI(opts = {}) {
   stepFwdBtn.textContent = '▶▶';
   stepFwdBtn.title = t('transport.stepFwdTitle');
   transportRow.append(stepBackBtn, allPauseBtn, stepFwdBtn);
+  const volumeRow = document.createElement('div');
+  volumeRow.className = 'transport-volume-row';
+  const volumeControls = document.createElement('div');
+  volumeControls.className = 'transport-volume-controls';
+  const volumeWrap = document.createElement('div');
+  volumeWrap.className = 'transport-volume-slider-wrap';
+  const volumeLbl = document.createElement('span');
+  volumeLbl.className = 'transport-volume-lbl';
+  volumeLbl.textContent = t('transport.volume');
+  const sliderRow = document.createElement('div');
+  sliderRow.className = 'transport-volume-slider-row';
+  const markMin = document.createElement('span');
+  markMin.className = 'transport-volume-slider-mark';
+  markMin.textContent = '0';
+  const volumeSlider = document.createElement('input');
+  volumeSlider.type = 'range';
+  volumeSlider.className = 'transport-volume-slider';
+  volumeSlider.min = '0';
+  volumeSlider.max = '100';
+  volumeSlider.value = String(Math.round(getHitVolumeSliderT() * 100));
+  volumeSlider.title = t('transport.volumeTitle');
+  volumeSlider.setAttribute('aria-label', t('transport.volume'));
+  const markMax = document.createElement('span');
+  markMax.className = 'transport-volume-slider-mark';
+  markMax.textContent = 'Max';
+  sliderRow.append(markMin, volumeSlider, markMax);
+  const muteBtn = document.createElement('button');
+  muteBtn.type = 'button';
+  muteBtn.className = 'transport-mute-btn';
+  muteBtn.setAttribute('aria-label', t('transport.mute'));
+  const syncVolumeControls = () => {
+    volumeControls.classList.toggle('is-muted', hitVolumeMuted);
+    volumeSlider.value = String(Math.round(getHitVolumeSliderT() * 100));
+  };
+  syncVolumeControls();
+  syncMuteBtnUI(muteBtn);
+  volumeSlider.addEventListener('input', () => {
+    onTransportClick();
+    setHitVolumeFromSliderT(parseInt(volumeSlider.value, 10) / 100);
+    syncVolumeControls();
+  });
+  muteBtn.addEventListener('click', () => {
+    onTransportClick();
+    setHitVolumeMuted(!hitVolumeMuted);
+    syncMuteBtnUI(muteBtn);
+    syncVolumeControls();
+  });
+  volumeWrap.append(volumeLbl, sliderRow);
+  volumeControls.append(volumeWrap, muteBtn);
+  volumeRow.appendChild(volumeControls);
   const randomRow = document.createElement('div');
   randomRow.className = 'transport-random-row';
   const randomPlayBtn = document.createElement('button');
@@ -4793,7 +5107,7 @@ function buildUI(opts = {}) {
     onTransportClick();
     applyRandomPlayback();
   });
-  transportBlock.append(transportRow, randomRow, utilsWrap);
+  transportBlock.append(transportRow, volumeRow, randomRow, utilsWrap);
   panel.appendChild(transportBlock);
 
   const slidersSec = document.createElement('section');
@@ -5534,6 +5848,7 @@ function startDemoMode() {
 // ─── Startup ─────────────────────────────────────────────────────────
 try {
   loadTrailSettings();
+  loadHitVolume();
   loadPersistedSaves();
   syncGlobalPresetsFromNamedSaves();
   seedBuiltinGlobalPresets();
