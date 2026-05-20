@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>交点の軌跡</title>
 <script src="vendor/math.min.js"></script>
 <script src="vendor/fflate.min.js"></script>
@@ -17,8 +18,12 @@ body {
   background:#0a0a12; color:var(--text);
   font-family:'Menlo','Consolas',monospace; font-size:12px;
   display:flex; flex-direction:column; align-items:center;
-  padding:10px 14px 18px; gap:8px;
+  padding:10px max(14px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  gap:8px;
   min-height:100vh;
+  min-height:100dvh;
+  -webkit-text-size-adjust:100%;
+  overflow-x:hidden;
 }
 h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-soft); width:100%; max-width:1280px; }
 
@@ -30,12 +35,19 @@ h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-
 #side-panel { display:flex; flex-direction:column; gap:0; flex-shrink:0; width:320px; max-height:calc(100vh - 120px); overflow-y:auto; }
 #side-panel::-webkit-scrollbar { width:10px; }
 #side-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:5px; }
-#canvas-wrap { position:relative; line-height:0; }
-#canvas-wrap canvas { display:block; border-radius:4px; border:1px solid rgba(255,255,255,.06); }
-.canvas-hint {
-  position:absolute; bottom:6px; left:8px; font-size:9px;
-  color:var(--text-soft); pointer-events:none;
+#canvas-wrap {
+  position:relative; line-height:0; width:100%; max-width:100%;
+  touch-action:none;
 }
+#canvas-wrap canvas {
+  display:block; width:100%; max-width:100%; height:auto;
+  border-radius:4px; border:1px solid rgba(255,255,255,.06);
+}
+.canvas-hint {
+  position:absolute; bottom:6px; left:8px; right:8px; font-size:9px;
+  color:var(--text-soft); pointer-events:none; line-height:1.35;
+}
+.canvas-hint--mobile { display:none; }
 #demo-banner {
   display:none; position:absolute; inset:0; z-index:6;
   align-items:center; justify-content:center;
@@ -98,9 +110,68 @@ h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-
 .reset-btn.rec-start:disabled { opacity:.4; }
 .formula-hint { color:var(--text-soft); margin-top:2px; }
 @media (max-width: 960px) {
-  #main-row { flex-direction:column; align-items:stretch; }
-  #side-panel { width:100% !important; max-width:none; max-height:none; overflow:visible; }
-  #canvas-col { align-items:center; }
+  #main-row { flex-direction:column; align-items:stretch; gap:10px; }
+  #canvas-col {
+    width:100%; align-items:stretch; flex-shrink:0;
+    position:sticky; top:env(safe-area-inset-top, 0); z-index:12;
+    background:#0a0a12;
+    padding-bottom:6px;
+    box-shadow:0 8px 20px rgba(0,0,0,.45);
+  }
+  #side-panel {
+    width:100% !important; max-width:none; max-height:none; overflow:visible;
+    border:1px solid rgba(255,255,255,.06); border-radius:6px;
+    background:rgba(0,0,0,.15);
+  }
+  #panel { width:100% !important; }
+  .transport-block { position:static; box-shadow:none; }
+  .canvas-hint--desktop { display:none; }
+  .canvas-hint--mobile { display:block; }
+}
+
+@media (max-width: 640px) {
+  body { padding:8px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); gap:6px; }
+  h1 { font-size:9px; letter-spacing:.14em; text-align:center; line-height:1.4; }
+  .transport-transport-row .transport-btn {
+    min-height:48px; font-size:20px; padding:10px 8px;
+  }
+  .transport-random-btn { min-height:44px; font-size:13px; }
+  .transport-utils-actions .reset-btn,
+  .transport-opt-btn, .vis-btn, .reset-btn {
+    min-height:36px; padding:8px 12px; font-size:11px;
+  }
+  .tab { padding:8px 12px 7px; font-size:12px; min-height:40px; }
+  .tab-close { width:22px; height:22px; font-size:15px; }
+  .fx-style-thumb { width:30px; height:30px; }
+  .fx-style-name { font-size:6px; }
+  .transport-fx-patterns {
+    padding-left:0; gap:3px;
+    grid-template-columns:repeat(5, minmax(0, 1fr));
+  }
+  .transport-fx-block .transport-utils-lbl {
+    width:100%; min-width:0; margin-bottom:2px;
+  }
+  .transport-fx-block .transport-utils-line { align-items:flex-start; }
+  .ctrl-row input[type=range] { min-height:28px; }
+  .pair-row { padding:8px 6px; min-height:40px; }
+  .pair-row input { width:18px; height:18px; }
+  .save-item img { width:88px; height:79px; }
+  .save-item .save-name { max-width:88px; font-size:8px; }
+  #global-presets { gap:4px; }
+  .global-presets-section { padding:8px 8px 6px; }
+  .gp-btn { padding:5px 3px 4px; min-height:0; gap:2px; font-size:9px; }
+  .gp-thumb-wrap { max-height:36px; }
+  .gp-btn .gp-icon { font-size:9px; }
+  .gp-btn .gp-label-row { font-size:8px; }
+  .details-tab, .collapsible-hdr { min-height:44px; padding:10px 12px; }
+  .card-area { padding:10px 10px 12px; }
+  .save-export-actions .reset-btn { flex:1 1 auto; min-width:calc(50% - 4px); text-align:center; }
+  #demo-countdown { font-size:18px; right:6px; bottom:6px; }
+  .rec-indicator { font-size:9px; padding:3px 8px; }
+}
+
+button, .tab, .fx-style-btn, .gp-btn, .preset-item, .pair-row, .details-tab, .collapsible-hdr {
+  -webkit-tap-highlight-color:transparent;
 }
 
 /* ── panel ── */
@@ -129,7 +200,7 @@ h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-
   color:var(--text);
 }
 .transport-transport-row .transport-btn-main {
-  flex:1.15; font-size:18px; font-weight:600;
+  flex:1.5; font-size:18px; font-weight:600;
   background:rgba(100,180,255,.14); border-color:rgba(120,200,255,.45);
   color:#e8f4ff;
 }
@@ -150,6 +221,16 @@ h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-
   opacity:.26; cursor:not-allowed;
   background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.08);
   color:rgba(255,255,255,.35);
+}
+.transport-random-row { width:100%; }
+.transport-random-btn {
+  width:100%; min-height:40px; padding:10px 14px;
+  font-size:12px; letter-spacing:.2em;
+  background:rgba(160,180,255,.1); border-color:rgba(160,180,255,.32);
+  color:#dde8ff; border-radius:6px;
+}
+.transport-random-btn:hover {
+  background:rgba(160,180,255,.2); border-color:rgba(160,180,255,.45); color:#fff;
 }
 .transport-utils-rows {
   border:1px solid rgba(255,255,255,.08); border-radius:5px;
@@ -414,7 +495,6 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 .ctrl-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; }
 .ctrl-row label { font-size:10px; color:var(--text); white-space:nowrap; }
 .ctrl-row input[type=range] { flex:1; min-width:80px; accent-color:#8af; }
-.export-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
 .hint { font-size:9px; color:var(--text-muted); }
 .batch-panel {
   margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.1);
@@ -432,24 +512,45 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 .tog     { color:var(--text-muted); border-color:rgba(255,255,255,.08); }
 .tog.on  { color:var(--text); border-color:rgba(160,180,255,.35); background:rgba(160,180,255,.07); }
 
-/* save bar */
+/* save panel (bottom collapsible) */
+.save-panel-inner { display:flex; flex-direction:column; gap:12px; }
+.save-subsection { display:flex; flex-direction:column; gap:6px; }
+.save-subsection-lbl {
+  font-size:10px; color:var(--text-soft); letter-spacing:.1em;
+  text-transform:uppercase;
+}
 .save-bar {
-  display:flex; align-items:center; gap:6px;
-  margin-top:8px; padding-top:8px;
-  border-top:1px solid rgba(255,255,255,.05);
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
 }
 .save-bar-lbl { font-size:10px; color:var(--text); flex-shrink:0; }
-.save-bar input { flex:1; }
+.save-bar input { flex:1; min-width:120px; }
 .save-bar-btn {
   background:rgba(160,180,255,.08); border:1px solid rgba(160,180,255,.2);
   border-radius:3px; color:#aac; font:inherit; font-size:11px;
   padding:5px 14px; cursor:pointer; flex-shrink:0; white-space:nowrap;
 }
 .save-bar-btn:hover { background:rgba(160,180,255,.17); color:#ccf; }
+.save-export-actions {
+  display:flex; gap:6px; flex-wrap:wrap;
+}
+.save-export-actions .reset-btn {
+  flex:1 1 calc(33.333% - 4px); min-width:96px; text-align:center;
+}
+.save-export-actions--pair .reset-btn {
+  flex:1 1 calc(50% - 3px); min-width:120px;
+}
+.save-export-actions .rec-start { color:#faa; border-color:rgba(255,120,120,.35); }
+.save-export-actions .rec-stop:disabled { opacity:.35; }
+#saves-area {
+  padding-top:4px; border-top:1px solid rgba(255,255,255,.06);
+}
 
 /* saves area */
 /* global presets */
-#global-presets { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px; }
+#global-presets {
+  display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px;
+  width:100%; min-width:0;
+}
 .gp-label { font-size:9px; color:rgba(255,200,80,.55); letter-spacing:.1em; }
 .gp-section-title {
   text-transform:none; letter-spacing:.04em; line-height:1.35; font-size:10px;
@@ -459,18 +560,27 @@ input.ferr { border-color:rgba(255,80,80,.55); }
   border-bottom:1px solid rgba(255,255,255,.08);
 }
 .gp-btn {
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:3px;
   background:rgba(255,190,60,.06); border:1px solid rgba(255,190,60,.2);
   border-radius:5px; color:rgba(255,210,100,.85); font:inherit; font-size:10px;
-  padding:6px 6px 5px; cursor:pointer;
+  padding:6px 4px 5px; cursor:pointer; min-width:0; overflow:hidden;
   transition:background .15s, color .15s, border-color .15s;
 }
 .gp-btn:hover { background:rgba(255,190,60,.16); color:rgba(255,240,160,.98); border-color:rgba(255,200,80,.45); }
-.gp-btn .gp-thumb {
-  width:100%; aspect-ratio:1; border-radius:3px; display:block;
-  background:#0c0c18; object-fit:contain;
+.gp-thumb-wrap {
+  width:100%; aspect-ratio:1; max-height:52px;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden; border-radius:3px; background:#0c0c18;
+  flex-shrink:1; min-height:0;
 }
-.gp-btn .gp-label-row { display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1.2; }
+.gp-btn .gp-thumb {
+  width:100%; height:100%; max-width:100%; max-height:100%;
+  display:block; object-fit:contain; object-position:center;
+}
+.gp-btn .gp-label-row {
+  display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1.2;
+  width:100%; min-width:0; overflow:hidden; text-overflow:ellipsis;
+}
 .gp-btn .gp-icon { font-size:11px; line-height:1; }
 .gp-btn .gp-sub { font-size:7px; color:rgba(255,220,140,.55); letter-spacing:0; }
 
@@ -530,8 +640,8 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 <div id="app-shell">
 <div id="sound-prefs-modal" class="sound-prefs-modal" role="dialog" aria-modal="true" aria-labelledby="sound-prefs-title" aria-hidden="true">
   <div class="sound-prefs-box">
-    <div id="sound-prefs-title" class="sound-prefs-title">サウンド</div>
-    <p class="sound-prefs-desc">交点の効果音を鳴らしますか？<br><small>後から「交点ペア」でペアごとに変更できます</small></p>
+    <div id="sound-prefs-title" class="sound-prefs-title">エフェクト</div>
+    <p class="sound-prefs-desc">交点のエフェクト（映像・音）を有効にしますか？</p>
     <div class="sound-prefs-actions">
       <button type="button" id="soundPrefOff" class="reset-btn sound-pref-btn active-choice">OFF</button>
       <button type="button" id="soundPrefOn" class="reset-btn sound-pref-btn">ON</button>
@@ -546,7 +656,8 @@ input.ferr { border-color:rgba(255,80,80,.55); }
       <div id="rec-indicator" class="rec-indicator" aria-hidden="true">
         <span class="rec-dot"></span> REC <span id="rec-time">0:00</span><span id="rec-status"></span>
       </div>
-      <span class="canvas-hint">ホイール:拡大縮小 · Shift+ドラッグ:移動 · ダブルクリック:ビューリセット</span>
+      <span class="canvas-hint canvas-hint--desktop">ホイール:拡大縮小 · Shift+ドラッグ:移動 · ダブルクリック:ビューリセット</span>
+      <span class="canvas-hint canvas-hint--mobile">1本指:移動 · 2本指:拡大縮小 · ダブルタップ:リセット · ドラッグ:図形</span>
       <div id="demo-banner" aria-hidden="true">デモ動作中</div>
       <div id="demo-countdown" aria-hidden="true"></div>
     </div>
@@ -565,8 +676,11 @@ input.ferr { border-color:rgba(255,80,80,.55); }
       <span class="chev">▶</span><span>保存</span>
     </button>
     <div class="collapsible-body is-collapsed" id="saveCollapsibleBody">
-      <div id="save-bar-host"></div>
-      <div id="saves-area"></div>
+      <div class="save-panel-inner">
+        <div id="save-bar-host"></div>
+        <div id="save-export-host"></div>
+        <div id="saves-area"></div>
+      </div>
     </div>
   </section>
   <section class="collapsible-section" id="batch-collapsible">
@@ -620,36 +734,68 @@ function trailFadeAlpha(dt) {
   return 1 - Math.pow(TRAIL_RESIDUAL, dt / sec);
 }
 
+function isNarrowLayout() {
+  return window.innerWidth < 960;
+}
+
+function isPhoneLayout() {
+  return window.innerWidth < 640;
+}
+
+function layoutPaddingX() {
+  if (isPhoneLayout()) return 20;
+  if (isNarrowLayout()) return 24;
+  return 28;
+}
+
 function contentWidth() {
-  const narrow = window.innerWidth < 960;
-  return narrow ? window.innerWidth - 28 : Math.min(MAXW, window.innerWidth - 28 - PANEL_W - 20);
+  const pad = layoutPaddingX();
+  if (isNarrowLayout()) {
+    const shell = document.getElementById('app-shell');
+    const w = shell ? shell.clientWidth : window.innerWidth;
+    return Math.max(280, Math.floor(w - pad));
+  }
+  return Math.max(320, Math.min(MAXW, window.innerWidth - pad - PANEL_W - 20));
 }
 
 function applySizes() {
+  const narrow = isNarrowLayout();
+  const phone = isPhoneLayout();
+  document.documentElement.classList.toggle('layout-narrow', narrow);
+  document.documentElement.classList.toggle('layout-phone', phone);
+
   W = contentWidth();
-  H = Math.round(W * 0.9);
+  const aspect = phone ? 0.82 : narrow ? 0.86 : 0.9;
+  let h = Math.round(W * aspect);
+  if (narrow) {
+    const maxH = Math.round(window.innerHeight * (phone ? 0.46 : 0.52));
+    h = Math.min(h, Math.max(220, maxH));
+  }
+  H = h;
   canvas.width = W;
   canvas.height = H;
   trailCv.width = W;
   trailCv.height = H;
+  canvas.style.width = '100%';
+  canvas.style.maxWidth = '100%';
+  canvas.style.height = 'auto';
+
   const panel = document.getElementById('panel');
   const sidePanel = document.getElementById('side-panel');
   if (sidePanel) {
-    if (window.innerWidth >= 960) sidePanel.style.width = PANEL_W + 'px';
+    if (!narrow) sidePanel.style.width = PANEL_W + 'px';
     else sidePanel.style.width = '';
   }
-  if (panel) {
-    if (window.innerWidth >= 960) panel.style.width = '100%';
-    else panel.style.width = '';
-  }
-  const shell = document.getElementById('app-shell');
-  const rowW = shell ? shell.clientWidth : (window.innerWidth < 960 ? W : W + 20 + PANEL_W);
+  if (panel) panel.style.width = narrow ? '' : '100%';
   const savesArea = document.getElementById('saves-area');
   if (savesArea) savesArea.style.width = '100%';
   encoderConfigCache = undefined;
   redrawAllTrails();
 }
 window.addEventListener('resize', () => { applySizes(); });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => { applySizes(); });
+}
 
 function wx(x) { return W / 2 + (x - view.panX) * view.scale; }
 function wy(y) { return H / 2 - (y - view.panY) * view.scale; }
@@ -1178,32 +1324,106 @@ let selectedPairFxKey = null;
 
 const PAIR_FX_DEFAULTS = {
   visualEnabled: true,
-  soundEnabled: false,
   visualStyle: 0,
-  soundStyle: 0,
 };
+
+function clampFxStyle(v, max) {
+  const n = parseInt(v, 10);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(max, n));
+}
+
+/** ビジュアル id → サウンド id（1:1） */
+const VISUAL_TO_SOUND_STYLE = [0, 1, 4, 3, 6, 5, 8, 9, 2, 7];
+const SOUND_FX_NAMES = [
+  'カリンバ', 'ベル', '木', 'ポップ', 'マリンバ', 'チャイム', 'そよ風', '星', 'ノック', '笛',
+];
+
+function soundStyleForVisual(visualId) {
+  const v = clampFxStyle(visualId, 9);
+  return VISUAL_TO_SOUND_STYLE[v] ?? 0;
+}
+
+function soundNameForVisual(visualId) {
+  return SOUND_FX_NAMES[soundStyleForVisual(visualId)] || SOUND_FX_NAMES[0];
+}
 
 function getPairFx(key) {
   const c = pairFxCache[key];
-  if (!c) return { ...PAIR_FX_DEFAULTS };
+  const visualEnabled = c?.visualEnabled ?? PAIR_FX_DEFAULTS.visualEnabled;
+  const visualStyle = clampFxStyle(c?.visualStyle ?? PAIR_FX_DEFAULTS.visualStyle, 9);
+  const soundStyle = soundStyleForVisual(visualStyle);
   return {
-    visualEnabled: c.visualEnabled ?? PAIR_FX_DEFAULTS.visualEnabled,
-    soundEnabled: c.soundEnabled ?? PAIR_FX_DEFAULTS.soundEnabled,
-    visualStyle: clampFxStyle(c.visualStyle ?? PAIR_FX_DEFAULTS.visualStyle, 9),
-    soundStyle: clampFxStyle(c.soundStyle ?? PAIR_FX_DEFAULTS.soundStyle, 9),
+    visualEnabled,
+    visualStyle,
+    soundEnabled: visualEnabled,
+    soundStyle,
   };
 }
 
 function setPairFx(key, patch) {
   if (!key) return;
-  pairFxCache[key] = { ...getPairFx(key), ...patch };
+  const cur = pairFxCache[key] || {};
+  const merged = { ...cur, ...patch };
+  if (patch.visualStyle !== undefined) {
+    merged.soundStyle = soundStyleForVisual(patch.visualStyle);
+  }
+  if (patch.visualEnabled !== undefined) {
+    merged.soundEnabled = !!patch.visualEnabled;
+  }
+  pairFxCache[key] = merged;
 }
 
-function setAllPairsSoundEnabled(on) {
+function setAllPairsEffectEnabled(on) {
+  intersectionEffectEnabled = !!on;
+  intersectionVisualEnabled = !!on;
   intersectionSoundEnabled = !!on;
   syncPairFxDefaultsFromGlobals();
-  PAIRS.forEach(p => setPairFx(pairKey(p.i, p.j), { soundEnabled: !!on }));
+  PAIRS.forEach(p => setPairFx(pairKey(p.i, p.j), { visualEnabled: !!on, soundEnabled: !!on }));
   if (on) unlockHitAudio();
+}
+
+/** ペア数ぶん、重複のないランダムなビジュアルエフェクト id（0–9） */
+function pickUniqueFxStyles(count) {
+  const maxStyle = 9;
+  const pool = [];
+  for (let i = 0; i <= maxStyle; i++) pool.push(i);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = rndInt(0, i);
+    const t = pool[i];
+    pool[i] = pool[j];
+    pool[j] = t;
+  }
+  const out = [];
+  for (let k = 0; k < count; k++) {
+    if (k < pool.length) {
+      out.push(pool[k]);
+    } else {
+      let s = rndInt(0, maxStyle);
+      if (count > 1 && s === out[out.length - 1]) {
+        s = (s + 1 + rndInt(0, maxStyle)) % (maxStyle + 1);
+      }
+      out.push(s);
+    }
+  }
+  return out;
+}
+
+function assignRandomPairEffects() {
+  if (!PAIRS.length) return;
+  const styles = pickUniqueFxStyles(PAIRS.length);
+  PAIRS.forEach((p, i) => {
+    const key = pairKey(p.i, p.j);
+    const prev = getPairFx(key);
+    const visualStyle = styles[i];
+    setPairFx(key, {
+      visualStyle,
+      soundStyle: soundStyleForVisual(visualStyle),
+      visualEnabled: prev.visualEnabled,
+      soundEnabled: prev.visualEnabled,
+    });
+  });
+  if (pairFxEditorRefresh) pairFxEditorRefresh();
 }
 
 let pairFxEditorRefresh = null;
@@ -1533,6 +1753,21 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+/** 現在のキャンバスに収まるおおよその半幅・半高（世界座標） */
+function viewFitHalfExtents(margin = 0.16) {
+  const m = 1 - margin;
+  return {
+    halfW: Math.max(80, (W / Math.max(0.12, view.scale)) / 2 * m),
+    halfH: Math.max(80, (H / Math.max(0.12, view.scale)) / 2 * m),
+  };
+}
+
+function maxRandomCurveRadius() {
+  const { halfW, halfH } = viewFitHalfExtents(0.22);
+  const half = Math.min(halfW, halfH);
+  return Math.max(32, Math.min(88, Math.floor(half * 0.72)));
+}
+
 function randomShapeLayout() {
   const spread = rndInt(120, 220);
   const sign = () => (Math.random() < 0.5 ? -1 : 1);
@@ -1551,7 +1786,28 @@ function randomShapeLayout() {
   };
 }
 
-function randomPresetFieldValues(spec) {
+/** 表示エリア内に収まりやすい配置（ランダム再生用） */
+function randomShapeLayoutInView() {
+  const { halfW, halfH } = viewFitHalfExtents(0.2);
+  const spreadX = rndInt(8, Math.max(16, Math.floor(halfW * 0.42)));
+  const spreadY = rndInt(8, Math.max(16, Math.floor(halfH * 0.42)));
+  const sign = () => (Math.random() < 0.5 ? -1 : 1);
+  let speed = rndFloat(-2.2, 2.2);
+  if (Math.abs(speed) < 0.12) speed = sign() * rndFloat(0.35, 1.2);
+  return {
+    fx: sign() * rndInt(0, spreadX),
+    fy: sign() * rndInt(0, spreadY),
+    px: sign() * rndInt(0, Math.floor(spreadX * 0.65)),
+    py: sign() * rndInt(0, Math.floor(spreadY * 0.65)),
+    speed,
+    angle: Math.random() * Math.PI * 2,
+    paused: false,
+    visible: true,
+    dupCount: 1,
+  };
+}
+
+function randomPresetFieldValues(spec, tight) {
   const vals = {};
   (spec.fields || []).forEach(f => {
     if (f.kind === 'select') {
@@ -1560,7 +1816,11 @@ function randomPresetFieldValues(spec) {
     } else if (f.kind === 'number') {
       let min = f.min != null ? f.min : 1;
       let max = f.max != null ? f.max : 160;
-      if (f.id === 'r' || f.id === 'a') { min = 85; max = 175; }
+      if (tight && (f.id === 'r' || f.id === 'a')) {
+        const mr = maxRandomCurveRadius();
+        min = Math.floor(mr * 0.5);
+        max = mr;
+      }
       vals[f.id] = String(rndInt(min, max));
     } else if (f.id === 'tmin') {
       vals[f.id] = String(-rndInt(5, 18));
@@ -1571,9 +1831,10 @@ function randomPresetFieldValues(spec) {
     } else if (f.id === 'y') {
       vals[f.id] = pickRandom(['5-t^2', 't^2-5', 'sin(t)*6', 'cos(t)*5', '-0.2*t^2+6', 't*0.4']);
     } else if (spec.id === 'parabola' && f.id === 'w') {
-      vals.w = String(rndInt(8, 20));
+      vals.w = String(tight ? rndInt(6, 14) : rndInt(8, 20));
     } else if (spec.id === 'parabola' && f.id === 'h') {
-      vals.h = String(rndInt(4, 14) * (Math.random() < 0.5 ? 1 : -1));
+      const hMax = tight ? 10 : 14;
+      vals.h = String(rndInt(3, hMax) * (Math.random() < 0.5 ? 1 : -1));
     } else {
       vals[f.id] = String(f.def ?? '');
     }
@@ -1584,13 +1845,17 @@ function randomPresetFieldValues(spec) {
   return vals;
 }
 
-function randomSimplePresetCurve(spec) {
-  const r = rndInt(90, 175);
+function randomSimplePresetCurve(spec, tight) {
+  const r = tight
+    ? rndInt(Math.floor(maxRandomCurveRadius() * 0.45), maxRandomCurveRadius())
+    : rndInt(90, 175);
   if (spec.name === '円') {
     return { formula: String(r), tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: rndInt(90, 150) };
   }
   if (spec.name === '直線') {
-    const half = rndInt(100, 200);
+    const half = tight
+      ? rndInt(35, Math.max(50, maxRandomCurveRadius()))
+      : rndInt(100, 200);
     return { formula: spec.formula, tMinS: String(-half), tMaxS: String(half), N: 2 };
   }
   if (spec.name === 'アステロイド') {
@@ -1608,15 +1873,16 @@ function presetPoolForRandom() {
   return PRESET_CATALOG.filter(s => s.type !== 'freehand');
 }
 
-function makeShapeFromPresetSpec(spec, hue) {
+function makeShapeFromPresetSpec(spec, hue, layoutFn = randomShapeLayout) {
   if (spec.type === 'freehand') return null;
-  const layout = randomShapeLayout();
+  const tight = layoutFn === randomShapeLayoutInView;
+  const layout = layoutFn();
   layout.hue = hue;
   if (spec.type === 'simple') {
-    Object.assign(layout, randomSimplePresetCurve(spec), { curveKind: 'formula', parabola: null });
+    Object.assign(layout, randomSimplePresetCurve(spec, tight), { curveKind: 'formula', parabola: null });
     return makeShape(layout);
   }
-  const vals = randomPresetFieldValues(spec);
+  const vals = randomPresetFieldValues(spec, tight);
   if (spec.mode === 'parabola') {
     const v = spec.resolve(vals);
     const shape = makeShape({ ...layout, curveKind: 'parabola', parabola: null });
@@ -1633,7 +1899,7 @@ function makeShapeFromPresetSpec(spec, hue) {
   return makeShape(layout);
 }
 
-function buildRandomInitialShapes(count) {
+function pickRandomPresetSpecs(count) {
   const pool = presetPoolForRandom().slice();
   const specs = [];
   while (specs.length < count && pool.length) {
@@ -1642,7 +1908,80 @@ function buildRandomInitialShapes(count) {
   }
   const fallback = presetPoolForRandom();
   while (specs.length < count) specs.push(pickRandom(fallback));
-  return specs.map((spec, i) => makeShapeFromPresetSpec(spec, SHAPE_HUES[i % SHAPE_HUES.length]));
+  return specs;
+}
+
+function buildRandomInitialShapes(count) {
+  return pickRandomPresetSpecs(count).map((spec, i) =>
+    makeShapeFromPresetSpec(spec, SHAPE_HUES[i % SHAPE_HUES.length]));
+}
+
+function buildRandomShapesInView(count) {
+  return pickRandomPresetSpecs(count).map((spec, i) =>
+    makeShapeFromPresetSpec(spec, SHAPE_HUES[i % SHAPE_HUES.length], randomShapeLayoutInView));
+}
+
+function computeShapesWorldBounds() {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const add = (x, y) => {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  };
+  shapes.forEach(s => {
+    if (!s.visible) return;
+    add(s.px, s.py);
+    getDupCenters(s).forEach(c => add(c.fx, c.fy));
+    const { instances } = getXf(s);
+    instances.forEach(inst => {
+      inst.wpts.forEach(p => { if (p) add(p.x, p.y); });
+    });
+  });
+  if (!Number.isFinite(minX)) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+function fitViewToShapes(padFrac = 0.12) {
+  const b = computeShapesWorldBounds();
+  if (!b) {
+    resetView();
+    return;
+  }
+  const cx = (b.minX + b.maxX) / 2;
+  const cy = (b.minY + b.maxY) / 2;
+  const spanX = Math.max(50, b.maxX - b.minX);
+  const spanY = Math.max(50, b.maxY - b.minY);
+  const pad = 1 + padFrac * 2;
+  view.scale = Math.min(10, Math.max(0.2, Math.min(W / (spanX * pad), H / (spanY * pad))));
+  view.panX = cx;
+  view.panY = cy;
+  viewDirty = true;
+}
+
+function applyRandomPlayback(opts = {}) {
+  if (batchActive || isRecording) return;
+  if (!opts.fromDemo) stopDemo();
+  const count = rndInt(2, 3);
+  shapes.length = 0;
+  buildRandomShapesInView(count).forEach(s => {
+    if (s) shapes.push(s);
+  });
+  collapseLegacyDupTabs();
+  PAIRS = computePairs();
+  assignRandomPairEffects();
+  activeTabIdx = 0;
+  shapes.forEach(s => { s.paused = false; s.angle = 0; });
+  clearTrails();
+  clearSimHistory();
+  fitViewToShapes(0.14);
+  buildUI();
+  updatePlaybackUI();
+  if (opts.fromDemo) resetDemoCountdown();
 }
 
 function applyInitialShapes() {
@@ -1890,17 +2229,18 @@ function fadeTrailLayer(dt) {
 let showGrid = true;
 let showAxes = true;
 /** 新規ペアの初期値（設定JSONの後方互換にも使用） */
+let intersectionEffectEnabled = true;
 let intersectionVisualEnabled = true;
 let intersectionSoundEnabled = false;
 let intersectionVisualStyle = 0;
 let intersectionSoundStyle = 0;
 
 function syncPairFxDefaultsFromGlobals() {
-  PAIR_FX_DEFAULTS.visualEnabled = intersectionVisualEnabled;
-  PAIR_FX_DEFAULTS.soundEnabled = intersectionSoundEnabled;
+  PAIR_FX_DEFAULTS.visualEnabled = intersectionEffectEnabled;
   PAIR_FX_DEFAULTS.visualStyle = intersectionVisualStyle;
-  PAIR_FX_DEFAULTS.soundStyle = intersectionSoundStyle;
+  intersectionSoundStyle = soundStyleForVisual(intersectionVisualStyle);
 }
+
 syncPairFxDefaultsFromGlobals();
 
 const VISUAL_FX_STYLES = [
@@ -1914,18 +2254,6 @@ const VISUAL_FX_STYLES = [
   { id: 7, name: '渦', desc: '渦を描くアーク' },
   { id: 8, name: '衝撃', desc: '二重の衝撃波' },
   { id: 9, name: '稲妻', desc: 'ジグザグの稲妻' },
-];
-const SOUND_FX_STYLES = [
-  { id: 0, name: 'カリンバ', desc: 'やわらかい打音（座標で音階）' },
-  { id: 1, name: 'ベル', desc: '澄んだ鐘の余韻' },
-  { id: 2, name: '木', desc: '短い木のタップ' },
-  { id: 3, name: 'ポップ', desc: '軽い粒の音' },
-  { id: 4, name: 'マリンバ', desc: '低めの木琴' },
-  { id: 5, name: 'チャイム', desc: '3音の和音' },
-  { id: 6, name: 'そよ風', desc: '息まちの打音' },
-  { id: 7, name: '星', desc: 'きらめく高音' },
-  { id: 8, name: 'ノック', desc: '小さな叩き音' },
-  { id: 9, name: '笛', desc: 'すっと伸びる音' },
 ];
 let fxStyleThumbsReady = false;
 
@@ -1949,12 +2277,6 @@ const SOUND_BASE_HZ = {
   airy: 523.25,
   chime: 440,
 };
-
-function clampFxStyle(v, max) {
-  const n = parseInt(v, 10);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(max, n));
-}
 
 function ensureHitAudio() {
   if (!hitAudioCtx) {
@@ -2000,8 +2322,8 @@ function worldToPentatonicHz(wx, wy, hue) {
   return midiToHz(PENTA_ROOT_MIDI + octave * 12 + semi);
 }
 
-function timbreForStyle(style) {
-  switch (style) {
+function timbreForStyle(soundStyle) {
+  switch (soundStyle) {
     case 1: return 'bell';
     case 2: return 'wood';
     case 3: return 'pop';
@@ -2109,9 +2431,11 @@ function playIntersectionSound(key, hue, wx, wy, style, enabled) {
       chord.forEach((r, i) => {
         playMalletHit(ac, bus, soundBuffers.chime, SOUND_BASE_HZ.chime, hz * r, t0 + i * 0.055, vol * 0.42, 0.32);
       });
+    } else if (style === 7) {
+      playMalletHit(ac, bus, soundBuffers.bell, SOUND_BASE_HZ.bell, hz * 1.35, t0, vol * 0.95, 0.14);
+      playMalletHit(ac, bus, soundBuffers.bell, SOUND_BASE_HZ.bell, hz * 1.65, t0 + 0.035, vol * 0.55, 0.1);
     } else if (style === 9) {
-      playMalletHit(ac, bus, soundBuffers.airy, SOUND_BASE_HZ.airy, hz, t0, vol * 0.9, 0.22);
-      playMalletHit(ac, bus, soundBuffers.airy, SOUND_BASE_HZ.airy, hz * 1.25, t0 + 0.04, vol * 0.55, 0.2);
+      playMalletHit(ac, bus, soundBuffers.airy, SOUND_BASE_HZ.airy, hz, t0, vol * 0.88, 0.34);
     } else {
       playMalletHit(ac, bus, soundBuffers[timbre], base, hz, t0, vol, decay);
     }
@@ -2136,7 +2460,7 @@ function notifyIntersectionHit(key, sx, sy, hue, wx, wy) {
       if (hitFxChains.length > 48) hitFxChains.shift();
     }
   }
-  playIntersectionSound(key, hue, wx, wy, fx.soundStyle, fx.soundEnabled);
+  playIntersectionSound(key, hue, wx, wy, fx.soundStyle, fx.visualEnabled);
 }
 
 function drawHitFxRing(c, ef, t) {
@@ -2544,7 +2868,6 @@ function ensureFxStyleThumbs() {
   if (fxStyleThumbsReady) return;
   const sz = 34;
   VISUAL_FX_STYLES.forEach(s => { s.thumb = buildVisualFxThumb(s.id, sz); });
-  SOUND_FX_STYLES.forEach(s => { s.thumb = buildSoundFxThumb(s.id, sz); });
   fxStyleThumbsReady = true;
 }
 
@@ -3220,6 +3543,7 @@ function loadGlobalPresetSlot(slot) {
     clearTrails();
     buildUI();
   }
+  assignRandomPairEffects();
   resetPlaybackAfterPreset();
 }
 
@@ -3230,11 +3554,14 @@ function renderGlobalPresets() {
   GLOBAL_PRESET_SLOTS.forEach(def => {
     const btn = document.createElement('button');
     btn.className = 'gp-btn';
+    const thumbWrap = document.createElement('span');
+    thumbWrap.className = 'gp-thumb-wrap';
     const img = document.createElement('img');
     img.className = 'gp-thumb';
     img.alt = '';
     img.src = def._thumbSrc || buildGlobalPresetThumb(resolveGlobalPresetData(def.slot)).toDataURL('image/png');
-    btn.appendChild(img);
+    thumbWrap.appendChild(img);
+    btn.appendChild(thumbWrap);
     const label = document.createElement('span');
     label.className = 'gp-label-row';
     label.innerHTML = `<span class="gp-icon">${def.icon}</span><span>${def.name}</span>`;
@@ -3294,10 +3621,11 @@ function settingsSnapshot() {
     trailDurationSec,
     showGrid,
     showAxes,
+    intersectionEffectEnabled,
     intersectionVisualEnabled,
     intersectionSoundEnabled,
     intersectionVisualStyle,
-    intersectionSoundStyle,
+    intersectionSoundStyle: soundStyleForVisual(intersectionVisualStyle),
     activeTabIdx,
     pairs: PAIRS.map(p => ({
       i: p.i, j: p.j, enabled: p.enabled, h: p.h,
@@ -3321,14 +3649,19 @@ function applySettingsSnapshot(data) {
   if (typeof data.trailDurationSec === 'number') trailDurationSec = data.trailDurationSec;
   if (typeof data.showGrid === 'boolean') showGrid = data.showGrid;
   if (typeof data.showAxes === 'boolean') showAxes = data.showAxes;
-  if (typeof data.intersectionVisualEnabled === 'boolean') {
+  if (typeof data.intersectionEffectEnabled === 'boolean') {
+    intersectionEffectEnabled = data.intersectionEffectEnabled;
+    intersectionVisualEnabled = data.intersectionEffectEnabled;
+    intersectionSoundEnabled = data.intersectionEffectEnabled;
+  } else if (typeof data.intersectionVisualEnabled === 'boolean') {
     intersectionVisualEnabled = data.intersectionVisualEnabled;
+    intersectionSoundEnabled = typeof data.intersectionSoundEnabled === 'boolean'
+      ? data.intersectionSoundEnabled
+      : data.intersectionVisualEnabled;
+    intersectionEffectEnabled = intersectionVisualEnabled && intersectionSoundEnabled;
   } else if (typeof data.intersectionEffectsEnabled === 'boolean') {
+    intersectionEffectEnabled = data.intersectionEffectsEnabled;
     intersectionVisualEnabled = data.intersectionEffectsEnabled;
-  }
-  if (typeof data.intersectionSoundEnabled === 'boolean') {
-    intersectionSoundEnabled = data.intersectionSoundEnabled;
-  } else if (typeof data.intersectionEffectsEnabled === 'boolean') {
     intersectionSoundEnabled = data.intersectionEffectsEnabled;
   }
   if (data.intersectionVisualStyle !== undefined) {
@@ -3336,6 +3669,8 @@ function applySettingsSnapshot(data) {
   }
   if (data.intersectionSoundStyle !== undefined) {
     intersectionSoundStyle = clampFxStyle(data.intersectionSoundStyle, 9);
+  } else {
+    intersectionSoundStyle = soundStyleForVisual(intersectionVisualStyle);
   }
   syncPairFxDefaultsFromGlobals();
   persistTrailSettings();
@@ -3347,11 +3682,13 @@ function applySettingsSnapshot(data) {
       if (pr) pr.enabled = p.enabled !== false;
       pairEnabledCache[k] = p.enabled !== false;
       if (p.fx && typeof p.fx === 'object') {
+        const visualStyle = clampFxStyle(p.fx.visualStyle ?? p.fx.soundStyle, 9);
+        const visualEnabled = p.fx.visualEnabled !== false;
         pairFxCache[k] = {
-          visualEnabled: p.fx.visualEnabled !== false,
-          soundEnabled: p.fx.soundEnabled === true,
-          visualStyle: clampFxStyle(p.fx.visualStyle, 9),
-          soundStyle: clampFxStyle(p.fx.soundStyle, 9),
+          visualEnabled,
+          visualStyle,
+          soundEnabled: visualEnabled,
+          soundStyle: soundStyleForVisual(visualStyle),
         };
       }
     });
@@ -3361,7 +3698,7 @@ function applySettingsSnapshot(data) {
         visualEnabled: data.intersectionEffectsEnabled,
         soundEnabled: data.intersectionEffectsEnabled,
         visualStyle: intersectionVisualStyle,
-        soundStyle: intersectionSoundStyle,
+        soundStyle: soundStyleForVisual(intersectionVisualStyle),
       };
     });
   }
@@ -3489,7 +3826,7 @@ function makeFxStyleThumbBtn(style, active, onSelect) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'fx-style-btn' + (active ? ' active-choice' : '');
-  btn.title = `${style.name} — ${style.desc}`;
+  btn.title = `${style.name} — ${style.desc}（音: ${soundNameForVisual(style.id)}）`;
   const thumb = document.createElement('canvas');
   thumb.className = 'fx-style-thumb';
   thumb.width = thumb.height = 34;
@@ -3855,7 +4192,7 @@ function buildUI() {
   stepBackBtn.type = 'button';
   stepBackBtn.id = 'stepBackBtn';
   stepBackBtn.className = 'reset-btn transport-btn';
-  stepBackBtn.textContent = '◀';
+  stepBackBtn.textContent = '◀◀';
   stepBackBtn.title = 'コマ戻し（全停止中）';
   const allPauseBtn = document.createElement('button');
   allPauseBtn.type = 'button';
@@ -3868,9 +4205,18 @@ function buildUI() {
   stepFwdBtn.type = 'button';
   stepFwdBtn.id = 'stepFwdBtn';
   stepFwdBtn.className = 'reset-btn transport-btn';
-  stepFwdBtn.textContent = '▶';
+  stepFwdBtn.textContent = '▶▶';
   stepFwdBtn.title = 'コマ送り（全停止中）';
   transportRow.append(stepBackBtn, allPauseBtn, stepFwdBtn);
+  const randomRow = document.createElement('div');
+  randomRow.className = 'transport-random-row';
+  const randomPlayBtn = document.createElement('button');
+  randomPlayBtn.type = 'button';
+  randomPlayBtn.id = 'randomPlayBtn';
+  randomPlayBtn.className = 'reset-btn transport-random-btn';
+  randomPlayBtn.textContent = 'ランダム';
+  randomPlayBtn.title = '図形と配置をランダムにして再生（表示エリア内に収める）';
+  randomRow.appendChild(randomPlayBtn);
   const utilsWrap = document.createElement('div');
   utilsWrap.className = 'transport-utils-rows';
   const axisShowBtn = makeTransportOptBtn('表示', showAxes);
@@ -3882,6 +4228,10 @@ function buildUI() {
   gridShowBtn.title = 'グリッドを表示';
   gridHideBtn.title = 'グリッドを非表示';
   const onTransportClick = () => unlockHitAudio();
+  randomPlayBtn.addEventListener('click', () => {
+    onTransportClick();
+    applyRandomPlayback();
+  });
   const timingResetBtn = document.createElement('button');
   timingResetBtn.type = 'button';
   timingResetBtn.className = 'reset-btn transport-opt-btn';
@@ -3898,7 +4248,7 @@ function buildUI() {
     makeTransportUtilsLine('タイミング', [timingResetBtn]),
     makeTransportUtilsLine('ビュー', [viewResetBtn]),
   );
-  transportBlock.append(transportRow, utilsWrap);
+  transportBlock.append(transportRow, randomRow, utilsWrap);
   panel.appendChild(transportBlock);
 
   const slidersSec = document.createElement('section');
@@ -4075,8 +4425,7 @@ function buildUI() {
   applyAllBtn.type = 'button';
   applyAllBtn.className = 'reset-btn pair-fx-apply-all';
   applyAllBtn.textContent = 'この設定を全ペアに適用';
-  let visualFxCtrl;
-  let soundFxCtrl;
+  let effectFxCtrl;
   function refreshPairFxEditor() {
     if (!selectedPairFxKey) {
       pairFxTitle.textContent = 'ペアを選択してください';
@@ -4085,17 +4434,17 @@ function buildUI() {
     const [i, j] = selectedPairFxKey.split('-').map(Number);
     const fx = getPairFx(selectedPairFxKey);
     pairFxTitle.textContent = `ペア ${i + 1}∩${j + 1} のエフェクト`;
-    if (visualFxCtrl) visualFxCtrl.sync(fx.visualEnabled, fx.visualStyle);
-    if (soundFxCtrl) soundFxCtrl.sync(fx.soundEnabled, fx.soundStyle);
+    if (effectFxCtrl) effectFxCtrl.sync(fx.visualEnabled, fx.visualStyle);
   }
-  visualFxCtrl = makeFxControlBlock(
-    'ビジュアル',
+  effectFxCtrl = makeFxControlBlock(
+    'エフェクト',
     true,
     0,
     VISUAL_FX_STYLES,
     en => {
       onTransportClick();
-      setPairFx(selectedPairFxKey, { visualEnabled: en });
+      setPairFx(selectedPairFxKey, { visualEnabled: en, soundEnabled: en });
+      if (en) unlockHitAudio();
       if (!en) hitFxBursts.length = 0;
       refreshPairFxEditor();
     },
@@ -4105,25 +4454,7 @@ function buildUI() {
       refreshPairFxEditor();
     },
   );
-  soundFxCtrl = makeFxControlBlock(
-    'サウンド',
-    false,
-    0,
-    SOUND_FX_STYLES,
-    en => {
-      onTransportClick();
-      if (!selectedPairFxKey) return;
-      setPairFx(selectedPairFxKey, { soundEnabled: en });
-      if (en) unlockHitAudio();
-      refreshPairFxEditor();
-    },
-    id => {
-      onTransportClick();
-      setPairFx(selectedPairFxKey, { soundStyle: id });
-      refreshPairFxEditor();
-    },
-  );
-  pairFxPanel.append(visualFxCtrl.block, soundFxCtrl.block);
+  pairFxPanel.append(effectFxCtrl.block);
   if (PAIRS.length > 1) {
     pairFxPanel.appendChild(applyAllBtn);
     applyAllBtn.addEventListener('click', () => {
@@ -4143,19 +4474,23 @@ function buildUI() {
 
 
   const saveBarHost = document.getElementById('save-bar-host');
+  const saveExportHost = document.getElementById('save-export-host');
   if (saveBarHost) {
     saveBarHost.innerHTML = '';
+    const snapSec = document.createElement('div');
+    snapSec.className = 'save-subsection';
+    const snapLbl = document.createElement('div');
+    snapLbl.className = 'save-subsection-lbl';
+    snapLbl.textContent = 'スナップショット';
     const saveBar = document.createElement('div');
     saveBar.className = 'save-bar';
-    saveBar.style.marginTop = '0';
-    saveBar.style.paddingTop = '0';
-    saveBar.style.borderTop = 'none';
     saveBar.innerHTML = `
       <span class="save-bar-lbl">保存名</span>
       <input type="text" id="saveNameInp" placeholder="（省略可）">
       <button class="save-bar-btn" id="saveBtn">📷 保存</button>
     `;
-    saveBarHost.appendChild(saveBar);
+    snapSec.append(snapLbl, saveBar);
+    saveBarHost.appendChild(snapSec);
     document.getElementById('saveBtn').addEventListener('click', () => {
       const name = document.getElementById('saveNameInp').value.trim();
       saveState(name);
@@ -4163,42 +4498,68 @@ function buildUI() {
     });
   }
 
-  const exportRow=document.createElement('div'); exportRow.className='export-row';
-  const pngBtn=document.createElement('button'); pngBtn.className='reset-btn';
-  pngBtn.textContent='PNG出力';
-  pngBtn.addEventListener('click', exportPng);
-  const jsonOutBtn=document.createElement('button'); jsonOutBtn.className='reset-btn';
-  jsonOutBtn.textContent='設定の保存';
-  jsonOutBtn.title='図形・表示・軌跡・ペアなどの設定をファイルに保存';
-  jsonOutBtn.addEventListener('click', exportJson);
-  const jsonInLbl=document.createElement('label'); jsonInLbl.className='reset-btn';
-  jsonInLbl.style.cursor='pointer';
-  jsonInLbl.textContent='設定の読み込み';
-  jsonInLbl.title='保存した設定ファイルを読み込む';
-  const jsonInp=document.createElement('input');
-  jsonInp.type='file'; jsonInp.accept='application/json,.json';
-  jsonInp.style.display='none';
-  jsonInLbl.appendChild(jsonInp);
-  jsonInp.addEventListener('change', e=>{
-    const f=e.target.files&&e.target.files[0];
-    if(f) importJsonFile(f);
-    jsonInp.value='';
-  });
-  const recStartBtn=document.createElement('button');
-  recStartBtn.id='recStartBtn';
-  recStartBtn.className='reset-btn rec-start';
-  recStartBtn.textContent='● MP4録画';
-  recStartBtn.addEventListener('click', () => {
-    startRecording().catch(e => alert(e && e.message ? e.message : String(e)));
-  });
-  const recStopBtn=document.createElement('button');
-  recStopBtn.id='recStopBtn';
-  recStopBtn.className='reset-btn rec-stop';
-  recStopBtn.textContent='■ 停止';
-  recStopBtn.disabled=true;
-  recStopBtn.addEventListener('click', stopRecording);
-  exportRow.append(pngBtn, recStartBtn, recStopBtn, jsonOutBtn, jsonInLbl);
-  panel.appendChild(exportRow);
+  if (saveExportHost) {
+    saveExportHost.innerHTML = '';
+    const exportSec = document.createElement('div');
+    exportSec.className = 'save-subsection';
+    const exportLbl = document.createElement('div');
+    exportLbl.className = 'save-subsection-lbl';
+    exportLbl.textContent = '書き出し';
+    const exportActions = document.createElement('div');
+    exportActions.className = 'save-export-actions';
+    const pngBtn = document.createElement('button');
+    pngBtn.className = 'reset-btn';
+    pngBtn.textContent = 'PNG出力';
+    pngBtn.title = '現在のキャンバスを PNG 画像で保存';
+    pngBtn.addEventListener('click', exportPng);
+    const recStartBtn = document.createElement('button');
+    recStartBtn.id = 'recStartBtn';
+    recStartBtn.className = 'reset-btn rec-start';
+    recStartBtn.textContent = '● MP4録画';
+    recStartBtn.addEventListener('click', () => {
+      startRecording().catch(e => alert(e && e.message ? e.message : String(e)));
+    });
+    const recStopBtn = document.createElement('button');
+    recStopBtn.id = 'recStopBtn';
+    recStopBtn.className = 'reset-btn rec-stop';
+    recStopBtn.textContent = '■ 停止';
+    recStopBtn.disabled = true;
+    recStopBtn.addEventListener('click', stopRecording);
+    exportActions.append(pngBtn, recStartBtn, recStopBtn);
+    exportSec.append(exportLbl, exportActions);
+
+    const settingsSec = document.createElement('div');
+    settingsSec.className = 'save-subsection';
+    const settingsLbl = document.createElement('div');
+    settingsLbl.className = 'save-subsection-lbl';
+    settingsLbl.textContent = '設定ファイル';
+    const settingsActions = document.createElement('div');
+    settingsActions.className = 'save-export-actions save-export-actions--pair';
+    const jsonOutBtn = document.createElement('button');
+    jsonOutBtn.className = 'reset-btn';
+    jsonOutBtn.textContent = '設定の保存';
+    jsonOutBtn.title = '図形・表示・軌跡・ペアなどの設定をファイルに保存';
+    jsonOutBtn.addEventListener('click', exportJson);
+    const jsonInLbl = document.createElement('label');
+    jsonInLbl.className = 'reset-btn';
+    jsonInLbl.style.cursor = 'pointer';
+    jsonInLbl.textContent = '設定の読み込み';
+    jsonInLbl.title = '保存した設定ファイルを読み込む';
+    const jsonInp = document.createElement('input');
+    jsonInp.type = 'file';
+    jsonInp.accept = 'application/json,.json';
+    jsonInp.style.display = 'none';
+    jsonInLbl.appendChild(jsonInp);
+    jsonInp.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (f) importJsonFile(f);
+      jsonInp.value = '';
+    });
+    settingsActions.append(jsonOutBtn, jsonInLbl);
+    settingsSec.append(settingsLbl, settingsActions);
+
+    saveExportHost.append(exportSec, settingsSec);
+  }
 
   const batchPanel = document.createElement('div');
   batchPanel.className = 'batch-panel';
@@ -4688,23 +5049,7 @@ function stopDemo() {
 
 function runRandomDemoPlayback() {
   if (!demoActive || batchActive || isRecording) return;
-  const count = rndInt(2, 3);
-  shapes.length = 0;
-  buildRandomInitialShapes(count).forEach(s => {
-    if (s) shapes.push(s);
-  });
-  collapseLegacyDupTabs();
-  PAIRS = computePairs();
-  activeTabIdx = 0;
-  view.scale = 1;
-  view.panX = 0;
-  view.panY = 0;
-  shapes.forEach(s => { s.paused = false; s.angle = 0; });
-  clearTrails();
-  clearSimHistory();
-  buildUI();
-  updatePlaybackUI();
-  resetDemoCountdown();
+  applyRandomPlayback({ fromDemo: true });
 }
 
 function isDemoCancelIgnoredEvent(e) {
@@ -4724,9 +5069,9 @@ function armDemoCancellation() {
   });
 }
 
-function dismissSoundPrefsModal(enableSound) {
+function dismissSoundPrefsModal(enableEffect) {
   const modal = document.getElementById('sound-prefs-modal');
-  setAllPairsSoundEnabled(!!enableSound);
+  setAllPairsEffectEnabled(!!enableEffect);
   if (modal) {
     modal.classList.remove('visible');
     modal.setAttribute('aria-hidden', 'true');
@@ -4745,10 +5090,10 @@ function showSoundPrefsModal() {
   }
   modal.classList.add('visible');
   modal.setAttribute('aria-hidden', 'false');
-  const pick = enableSound => {
-    offBtn.classList.toggle('active-choice', !enableSound);
-    onBtn.classList.toggle('active-choice', enableSound);
-    dismissSoundPrefsModal(enableSound);
+  const pick = enableEffect => {
+    offBtn.classList.toggle('active-choice', !enableEffect);
+    onBtn.classList.toggle('active-choice', enableEffect);
+    dismissSoundPrefsModal(enableEffect);
   };
   offBtn.addEventListener('click', () => pick(false), { once: true });
   onBtn.addEventListener('click', () => pick(true), { once: true });
@@ -4875,6 +5220,7 @@ function endCanvasDrag() {
 }
 
 let panDrag=null;
+let touchPinch=null;
 
 function canvasCoords(e) {
   const r=canvas.getBoundingClientRect();
@@ -4900,6 +5246,10 @@ canvas.addEventListener('dblclick', e=>{
   e.preventDefault();
   resetView();
 });
+
+let lastTouchTap = 0;
+let singleTouchMoved = false;
+let touchUsedPinch = false;
 
 canvas.addEventListener('mousedown', e=>{
   const {mx,my}=canvasCoords(e);
@@ -4930,23 +5280,116 @@ canvas.addEventListener('mousemove', e=>{
 canvas.addEventListener('mouseup', endCanvasDrag);
 canvas.addEventListener('mouseleave', endCanvasDrag);
 
-canvas.addEventListener('touchstart', e=>{
-  if(e.touches.length!==1) return;
-  const r=canvas.getBoundingClientRect(); const t=e.touches[0];
-  const mx=(t.clientX-r.left)*(W/r.width), my=(t.clientY-r.top)*(H/r.height);
-  const hit=hitTest(mx,my);
-  if(hit){ drag={...hit,lastX:mx,lastY:my}; e.preventDefault(); }
-},{passive:false});
-canvas.addEventListener('touchmove', e=>{
-  if(!drag||e.touches.length!==1) return;
+function touchCanvasCoords(t, r) {
+  return {
+    mx: (t.clientX - r.left) * (W / r.width),
+    my: (t.clientY - r.top) * (H / r.height),
+  };
+}
+
+canvas.addEventListener('touchstart', e => {
+  const r = canvas.getBoundingClientRect();
+  if (e.touches.length === 2) {
+    touchUsedPinch = true;
+    const t0 = e.touches[0];
+    const t1 = e.touches[1];
+    const cx = (t0.clientX + t1.clientX) / 2;
+    const cy = (t0.clientY + t1.clientY) / 2;
+    const mx = (cx - r.left) * (W / r.width);
+    const my = (cy - r.top) * (H / r.height);
+    touchPinch = {
+      dist: Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY),
+      anchor: screenToWorld(mx, my),
+      scale0: view.scale,
+    };
+    drag = null;
+    panDrag = null;
+    e.preventDefault();
+    return;
+  }
+  if (e.touches.length !== 1) return;
+  singleTouchMoved = false;
+  const t = e.touches[0];
+  const { mx, my } = touchCanvasCoords(t, r);
+  const hit = hitTest(mx, my);
+  if (hit) {
+    drag = { ...hit, lastX: mx, lastY: my };
+    e.preventDefault();
+    return;
+  }
+  panDrag = { lastX: mx, lastY: my };
+  canvas.style.cursor = 'move';
   e.preventDefault();
-  const r=canvas.getBoundingClientRect(); const t=e.touches[0];
-  const mx=(t.clientX-r.left)*(W/r.width), my=(t.clientY-r.top)*(H/r.height);
-  const ddx=mx-drag.lastX, ddy=my-drag.lastY;
-  drag.lastX=mx; drag.lastY=my;
-  applyDrag(ddx,ddy,drag.idx);
-},{passive:false});
-canvas.addEventListener('touchend', endCanvasDrag);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  const r = canvas.getBoundingClientRect();
+  if (e.touches.length === 2 && touchPinch) {
+    const t0 = e.touches[0];
+    const t1 = e.touches[1];
+    const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    if (touchPinch.dist > 8) {
+      const factor = dist / touchPinch.dist;
+      view.scale = Math.min(10, Math.max(0.12, touchPinch.scale0 * factor));
+      const cx = (t0.clientX + t1.clientX) / 2;
+      const cy = (t0.clientY + t1.clientY) / 2;
+      const mx = (cx - r.left) * (W / r.width);
+      const my = (cy - r.top) * (H / r.height);
+      const after = screenToWorld(mx, my);
+      view.panX += touchPinch.anchor.x - after.x;
+      view.panY += touchPinch.anchor.y - after.y;
+      viewDirty = true;
+    }
+    e.preventDefault();
+    return;
+  }
+  if (e.touches.length !== 1) return;
+  const t = e.touches[0];
+  const { mx, my } = touchCanvasCoords(t, r);
+  if (panDrag) {
+    singleTouchMoved = true;
+    const ddx = mx - panDrag.lastX;
+    const ddy = my - panDrag.lastY;
+    panDrag.lastX = mx;
+    panDrag.lastY = my;
+    view.panX -= ddx / view.scale;
+    view.panY += ddy / view.scale;
+    viewDirty = true;
+    e.preventDefault();
+    return;
+  }
+  if (!drag) return;
+  singleTouchMoved = true;
+  e.preventDefault();
+  const ddx = mx - drag.lastX;
+  const ddy = my - drag.lastY;
+  drag.lastX = mx;
+  drag.lastY = my;
+  applyDrag(ddx, ddy, drag.idx);
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length < 2) touchPinch = null;
+  if (e.touches.length === 0) {
+    if (touchUsedPinch) {
+      touchUsedPinch = false;
+    } else if (!singleTouchMoved) {
+      const now = Date.now();
+      if (now - lastTouchTap < 320) {
+        e.preventDefault();
+        resetView();
+        lastTouchTap = 0;
+      } else {
+        lastTouchTap = now;
+      }
+    }
+    endCanvasDrag();
+  }
+});
+canvas.addEventListener('touchcancel', e => {
+  touchPinch = null;
+  endCanvasDrag();
+});
 </script>
 </body>
 </html>
