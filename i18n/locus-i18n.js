@@ -32,7 +32,7 @@
       'canvas.hintDesktop': 'ホイール:拡大縮小 · Shift+ドラッグ:移動 · ダブルクリック:ビューリセット',
       'canvas.hintMobile': '1本指:移動 · 2本指:拡大縮小 · ダブルタップ:リセット · ドラッグ:図形',
       'demo.banner': 'デモ動作中',
-      'globalPresets.platoTitle': 'ジョゼフ・プラトーの残した4形態',
+      'globalPresets.platoTitle': 'ジョゼフ・プラトーが書き残した、謎の軌跡図',
       'collapsible.save': '保存',
       'collapsible.batch': 'ω 総当りバッチ',
       'collapsible.sliders': '軌跡・速度',
@@ -42,10 +42,12 @@
       'transport.pauseAll': '全図形を停止',
       'transport.random': 'ランダム',
       'transport.randomTitle': '図形と配置をランダムにして再生（表示エリア内に収める）',
-      'transport.axes': '軸',
-      'transport.grid': 'グリッド',
+      'transport.axes': '軸表示',
+      'transport.grid': 'グリッド表示',
       'transport.timing': 'タイミング',
       'transport.view': 'ビュー',
+      'transport.timingReset': 'タイミングリセット',
+      'transport.viewReset': 'ビューリセット',
       'transport.axesShow': '座標軸を表示',
       'transport.axesHide': '座標軸を非表示',
       'transport.gridShow': 'グリッドを表示',
@@ -199,7 +201,7 @@
       'canvas.hintDesktop': 'Wheel: zoom · Shift+drag: pan · Double-click: reset view',
       'canvas.hintMobile': '1 finger: pan · 2 fingers: zoom · Double-tap: reset · Drag: shapes',
       'demo.banner': 'Demo running',
-      'globalPresets.platoTitle': "Joseph Plateau's mysterious disc",
+      'globalPresets.platoTitle': 'The mysterious locus diagram left behind by Joseph Phaetau',
       'collapsible.save': 'Save',
       'collapsible.batch': 'ω batch sweep',
       'collapsible.sliders': 'Trail & speed',
@@ -213,6 +215,8 @@
       'transport.grid': 'Grid',
       'transport.timing': 'Timing',
       'transport.view': 'View',
+      'transport.timingReset': 'Timing Reset',
+      'transport.viewReset': 'View Reset',
       'transport.axesShow': 'Show axes',
       'transport.axesHide': 'Hide axes',
       'transport.gridShow': 'Show grid',
@@ -359,16 +363,8 @@
     });
   }
 
-  function normalizeLangTag(raw) {
-    return String(raw || '').trim().toLowerCase().replace(/_/g, '-');
-  }
-
-  /** First-visit language: primary browser tag only (ja/en), default ja. */
+  /** @deprecated First-visit default is always ja; kept for API compatibility. */
   function detectBrowserLang() {
-    const primary = normalizeLangTag(navigator.language);
-    if (!primary) return 'ja';
-    if (primary === 'ja' || primary.startsWith('ja-')) return 'ja';
-    if (primary === 'en' || primary.startsWith('en-')) return 'en';
     return 'ja';
   }
 
@@ -548,9 +544,9 @@
     try {
       const saved = localStorage.getItem(LANG_STORAGE_KEY);
       if (saved && SUPPORTED.includes(saved)) currentLang = saved;
-      else currentLang = detectBrowserLang();
+      else currentLang = 'ja';
     } catch {
-      currentLang = detectBrowserLang();
+      currentLang = 'ja';
     }
     applyStaticI18n();
   }

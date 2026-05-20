@@ -42,20 +42,83 @@ body {
   color:rgba(255,248,235,.92);
 }
 
-#app-shell { width:100%; max-width:1280px; display:flex; flex-direction:column; gap:10px; }
+#app-shell {
+  width:100%; max-width:min(100%, 1600px); flex:1; min-height:0; min-width:0;
+  display:flex; flex-direction:column; gap:10px; align-self:stretch;
+  box-sizing:border-box;
+}
+#workspace {
+  flex:1; min-height:0; min-width:0; width:100%; max-width:100%;
+  display:flex; flex-direction:column; box-sizing:border-box;
+}
 
 /* ── main row: canvas + panel side by side ── */
-#main-row { display:flex; gap:14px; align-items:flex-start; width:100%; }
-#canvas-col { display:flex; flex-direction:column; gap:6px; flex:1; min-width:0; }
-#side-panel { display:flex; flex-direction:column; gap:0; flex-shrink:0; width:320px; max-height:calc(100vh - 120px); overflow-y:auto; }
-#side-panel::-webkit-scrollbar { width:10px; }
-#side-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.18); border-radius:5px; }
+#main-row {
+  display:flex; gap:14px; align-items:stretch; width:100%;
+  flex:1; min-height:0;
+}
+#canvas-col {
+  display:flex; flex-direction:column; gap:6px; flex:1; min-width:0; min-height:0;
+}
+:root { --panel-w: 320px; }
+#side-panel {
+  display:flex; flex-direction:column; gap:0; flex-shrink:0;
+  width:var(--panel-w); min-width:0; max-width:100%; min-height:0; max-height:none;
+  overflow:hidden; box-sizing:border-box;
+}
+html:not(.layout-narrow) #app-shell {
+  width:100%; max-width:none;
+}
+html:not(.layout-narrow) .app-site-title {
+  max-width:none;
+  padding-right:calc(var(--panel-w) + 14px + env(safe-area-inset-right, 0px));
+  box-sizing:border-box;
+}
+html:not(.layout-narrow) #workspace {
+  width:100%;
+}
+html:not(.layout-narrow) #main-row {
+  padding-right:calc(var(--panel-w) + env(safe-area-inset-right, 0px));
+  box-sizing:border-box;
+}
+html:not(.layout-narrow) #side-panel {
+  position:fixed;
+  top:0; right:0; bottom:0;
+  z-index:25;
+  max-height:100dvh;
+  border-left:1px solid rgba(255,255,255,.1);
+  background:#0a0a12;
+  box-shadow:-8px 0 24px rgba(0,0,0,.35);
+  padding-top:env(safe-area-inset-top, 0);
+  padding-bottom:env(safe-area-inset-bottom, 0);
+  padding-right:env(safe-area-inset-right, 0);
+}
+html.layout-narrow #side-panel {
+  position:static !important;
+  right:auto !important; top:auto !important; bottom:auto !important;
+  width:100% !important; max-width:100% !important;
+  min-width:0 !important;
+  box-shadow:none !important;
+}
+#panel {
+  flex:1; min-height:0; overflow-x:hidden; overflow-y:auto;
+}
+#panel::-webkit-scrollbar, #side-panel::-webkit-scrollbar { width:10px; }
+#panel::-webkit-scrollbar-thumb, #side-panel::-webkit-scrollbar-thumb {
+  background:rgba(255,255,255,.18); border-radius:5px;
+}
+#panel-tools {
+  flex-shrink:0; display:flex; flex-direction:column; gap:0;
+  border-top:1px solid rgba(255,255,255,.08);
+  background:rgba(0,0,0,.12);
+}
 #canvas-wrap {
   position:relative; line-height:0; width:100%; max-width:100%;
-  touch-action:none;
+  flex:1; min-height:200px; touch-action:none;
+  display:flex; align-items:center; justify-content:center;
 }
 #canvas-wrap canvas {
-  display:block; width:100%; max-width:100%; height:auto;
+  display:block; width:100%; height:100%; max-width:100%; max-height:100%;
   border-radius:4px; border:1px solid rgba(255,255,255,.06);
 }
 .canvas-hint {
@@ -102,6 +165,45 @@ body {
 }
 .sound-pref-btn {
   min-width:88px; padding:8px 16px; font-size:12px;
+}
+.startup-prefs-box .effect-prefs-section {
+  gap:12px; padding:16px 18px 18px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:10px;
+  box-shadow:0 4px 24px rgba(0,0,0,.25);
+}
+.startup-prefs-box .effect-prefs-lbl {
+  font-size:14px; color:#f4f4ff; letter-spacing:.14em;
+}
+.startup-prefs-box .sound-prefs-desc {
+  font-size:12px; line-height:1.55; color:rgba(255,255,255,.78);
+  max-width:36em; margin:0 auto;
+}
+.startup-prefs-box .sound-prefs-actions {
+  gap:12px; width:100%; max-width:360px; margin:4px auto 0;
+}
+.startup-prefs-box .sound-pref-btn {
+  flex:1; min-width:0; min-height:52px;
+  padding:14px 18px; font-size:16px; letter-spacing:.18em;
+  border-width:1px; border-color:rgba(255,255,255,.22);
+}
+.startup-prefs-box .sound-pref-btn.active-choice {
+  background:rgba(160,180,255,.22);
+  border-color:rgba(190,210,255,.55);
+  color:#fff;
+  box-shadow:0 0 20px rgba(140,170,255,.2);
+}
+.startup-prefs-box .lang-prefs-section {
+  gap:6px; padding-top:4px;
+}
+.startup-prefs-box .lang-prefs-lbl {
+  font-size:9px; letter-spacing:.14em; opacity:.72;
+}
+.startup-prefs-box .lang-picker { max-width:220px; }
+.startup-prefs-box .lang-picker-btn {
+  padding:7px 10px; font-size:11px;
+  border-color:rgba(255,255,255,.12);
 }
 .startup-prefs-box {
   width:min(440px, 94vw); gap:16px; text-align:left;
@@ -186,21 +288,41 @@ body {
 .reset-btn.rec-start:not(:disabled):hover { background:rgba(255,60,60,.12); }
 .reset-btn.rec-start:disabled { opacity:.4; }
 .formula-hint { color:var(--text-soft); margin-top:2px; }
-@media (max-width: 960px) {
-  #main-row { flex-direction:column; align-items:stretch; gap:10px; }
+@media (min-width: 960px) {
+  body { align-items:stretch; }
+}
+@media (max-width: 959px) {
+  body { align-items:stretch; }
+  .app-site-title { width:100%; max-width:100%; align-self:stretch; box-sizing:border-box; }
+  #app-shell {
+    width:100%; max-width:100%; min-width:0; align-self:stretch;
+    overflow-x:hidden; box-sizing:border-box;
+  }
+  #main-row { flex-direction:column; align-items:stretch; gap:10px; padding-right:0; min-width:0; max-width:100%; }
+  #workspace { min-width:0; max-width:100%; overflow-x:hidden; }
   #canvas-col {
-    width:100%; align-items:stretch; flex-shrink:0;
+    width:100%; align-items:stretch; flex:0 0 auto; min-height:0; min-width:0; max-width:100%;
     position:sticky; top:env(safe-area-inset-top, 0); z-index:12;
     background:#0a0a12;
     padding-bottom:6px;
     box-shadow:0 8px 20px rgba(0,0,0,.45);
   }
+  #canvas-wrap { flex:none; min-height:min(52vh, 420px); }
+  html.layout-narrow #side-panel,
   #side-panel {
-    width:100% !important; max-width:none; max-height:none; overflow:visible;
+    position:static; right:auto; top:auto; bottom:auto;
+    width:100% !important; max-width:100%; min-width:0; max-height:none;
+    overflow-x:hidden; overflow-y:visible;
+    box-sizing:border-box;
     border:1px solid rgba(255,255,255,.06); border-radius:6px;
     background:rgba(0,0,0,.15);
+    box-shadow:none;
   }
-  #panel { width:100% !important; }
+  #panel { width:100% !important; max-width:100%; min-width:0; flex:none; max-height:none; overflow-x:hidden; overflow-y:visible; }
+  .global-presets-section, #global-presets { min-width:0; max-width:100%; box-sizing:border-box; overflow:hidden; }
+  #global-presets { --gp-gap:2px; }
+  .global-presets-section { padding:6px 3px 4px !important; }
+  .gp-thumb-wrap { max-height:clamp(26px, 16vw, 48px); }
   .transport-block { position:static; box-shadow:none; }
   .canvas-hint--desktop { display:none; }
   .canvas-hint--mobile { display:block; }
@@ -239,12 +361,10 @@ body {
   .pair-row input { width:18px; height:18px; }
   .save-item img { width:88px; height:79px; }
   .save-item .save-name { max-width:88px; font-size:8px; }
-  #global-presets { gap:4px; }
-  .global-presets-section { padding:8px 8px 6px; }
-  .gp-btn { padding:5px 3px 4px; min-height:0; gap:2px; font-size:9px; }
-  .gp-thumb-wrap { max-height:36px; }
-  .gp-btn .gp-icon { font-size:9px; }
-  .gp-btn .gp-label-row { font-size:8px; }
+  #global-presets { --gp-gap:2px; }
+  .global-presets-section { padding:6px 2px 4px !important; }
+  .gp-thumb-wrap { max-height:clamp(24px, 14vw, 40px); }
+  .gp-btn { font-size:7px; padding:2px 0 1px; }
   .details-tab, .collapsible-hdr { min-height:44px; padding:10px 12px; }
   .card-area { padding:10px 10px 12px; }
   .save-export-actions .reset-btn { flex:1 1 auto; min-width:calc(50% - 4px); text-align:center; }
@@ -257,10 +377,11 @@ button, .tab, .fx-style-btn, .gp-btn, .preset-item, .pair-row, .details-tab, .co
 }
 
 /* ── panel ── */
-#panel { display:flex; flex-direction:column; gap:0; flex:1; min-width:0; }
+#panel { display:flex; flex-direction:column; gap:0; min-width:0; }
 .panel-section {
   padding:10px 12px; border-top:1px solid rgba(255,255,255,.06);
   display:flex; flex-direction:column; gap:8px;
+  min-width:0; max-width:100%; box-sizing:border-box;
 }
 .panel-section:first-child { border-top:none; }
 .panel-section-title {
@@ -334,9 +455,31 @@ button, .tab, .fx-style-btn, .gp-btn, .preset-item, .pair-row, .details-tab, .co
   font-size:10px; padding:4px 8px; flex:0 0 auto; min-width:0;
   white-space:nowrap;
 }
-.transport-opt-btn.active-choice {
+.transport-opt-btn.active-choice,
+.transport-toggle-btn.active-choice {
   color:var(--text); border-color:rgba(160,180,255,.4);
   background:rgba(160,180,255,.12);
+}
+.transport-toggle-row,
+.transport-reset-row {
+  display:flex; align-items:stretch; gap:6px; width:100%;
+}
+.transport-toggle-btn,
+.transport-reset-row .transport-reset-btn {
+  flex:1; min-height:32px; padding:6px 8px;
+  font-size:10px; letter-spacing:.04em; white-space:normal;
+  line-height:1.25; text-align:center;
+}
+.transport-toggle-btn:not(.active-choice) {
+  opacity:.72; color:var(--text-soft);
+  background:rgba(255,255,255,.03); border-color:rgba(255,255,255,.1);
+}
+.transport-reset-row .transport-reset-btn {
+  background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.14);
+  color:var(--text-soft);
+}
+.transport-reset-row .transport-reset-btn:hover {
+  background:rgba(255,255,255,.1); color:var(--text);
 }
 .transport-fx-block {
   display:flex; flex-direction:column; gap:4px;
@@ -398,12 +541,10 @@ button, .tab, .fx-style-btn, .gp-btn, .preset-item, .pair-row, .details-tab, .co
 .collapsible-body { padding:0 14px 12px; display:flex; flex-direction:column; gap:8px; }
 .collapsible-body.is-collapsed { display:none; }
 .panel-inline-hdr { padding:0 0 6px; }
-#bottom-bar { width:100%; max-width:1280px; }
 .sliders-grid { display:flex; flex-direction:column; gap:8px; }
-#bottom-bar {
-  display:flex; flex-direction:column; gap:10px; width:100%;
-}
-.bottom-section { display:flex; flex-direction:column; gap:6px; }
+.panel-tools-section { border-top:1px solid rgba(255,255,255,.06); }
+.panel-tools-section .collapsible-hdr { padding:8px 12px; }
+.panel-tools-section .collapsible-body { padding:0 12px 10px; }
 
 /* tabs */
 .tab-row {
@@ -503,9 +644,20 @@ input.ferr { border-color:rgba(255,80,80,.55); }
   cursor:pointer; min-width:0; opacity:.65; transition:opacity .15s, border-color .15s;
 }
 .p-item:hover { opacity:1; }
-.p-item canvas { border-radius:3px; border:1px solid rgba(255,255,255,.08); display:block; }
-.p-item:hover canvas { border-color:rgba(255,255,255,.3); }
-.p-item.p-item-selected canvas { border-color:rgba(160,180,255,.65); box-shadow:0 0 0 1px rgba(160,180,255,.35); }
+.p-item-thumb-wrap {
+  width:100%; max-width:38px; aspect-ratio:1;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden; border-radius:3px; background:#0c0c18;
+  border:1px solid rgba(255,255,255,.08); flex-shrink:0;
+}
+.p-item:hover .p-item-thumb-wrap { border-color:rgba(255,255,255,.3); }
+.p-item.p-item-selected .p-item-thumb-wrap {
+  border-color:rgba(160,180,255,.65);
+  box-shadow:0 0 0 1px rgba(160,180,255,.35);
+}
+.p-item canvas {
+  display:block; width:100%; height:100%; max-width:38px; max-height:38px;
+}
 .p-item.p-item-selected { opacity:1; }
 .p-item span { font-size:8px; color:var(--text); white-space:nowrap; text-align:center; line-height:1.15; }
 .preset-params {
@@ -553,7 +705,10 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 
 /* bottom */
 .bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-.pair-legend { display:flex; flex-direction:column; gap:5px; font-size:10px; color:var(--text-soft); flex:1; }
+.pair-legend {
+  display:flex; flex-direction:column; gap:5px; font-size:10px; color:var(--text-soft); flex:1;
+  min-height:7.5em;
+}
 .pair-row {
   display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none;
   padding:2px 4px; border-radius:3px; transition:background .12s;
@@ -630,40 +785,48 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 /* saves area */
 /* global presets */
 #global-presets {
-  display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:8px;
-  width:100%; min-width:0;
+  --gp-gap:2px;
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:var(--gp-gap);
+  width:100%; min-width:0; max-width:100%; box-sizing:border-box;
 }
 .gp-label { font-size:9px; color:rgba(255,200,80,.55); letter-spacing:.1em; }
 .gp-section-title {
   text-transform:none; letter-spacing:.04em; line-height:1.35; font-size:10px;
 }
 .global-presets-section {
-  flex-shrink:0; padding:10px 12px 8px;
+  flex-shrink:0; padding:6px 4px 4px !important; gap:4px !important;
   border-bottom:1px solid rgba(255,255,255,.08);
+  min-width:0; max-width:100%; box-sizing:border-box; overflow:hidden;
 }
-.gp-btn {
-  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:3px;
+button.gp-btn {
+  display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:1px;
+  width:100%; max-width:100%; min-width:0 !important;
+  -webkit-appearance:none; appearance:none;
   background:rgba(255,190,60,.06); border:1px solid rgba(255,190,60,.2);
-  border-radius:5px; color:rgba(255,210,100,.85); font:inherit; font-size:10px;
-  padding:6px 4px 5px; cursor:pointer; min-width:0; overflow:hidden;
+  border-radius:4px; color:rgba(255,210,100,.85); font:inherit; font-size:8px;
+  padding:2px 1px 1px; cursor:pointer;
+  box-sizing:border-box; overflow:hidden;
   transition:background .15s, color .15s, border-color .15s;
 }
 .gp-btn:hover { background:rgba(255,190,60,.16); color:rgba(255,240,160,.98); border-color:rgba(255,200,80,.45); }
 .gp-thumb-wrap {
-  width:100%; aspect-ratio:1; max-height:52px;
-  display:flex; align-items:center; justify-content:center;
-  overflow:hidden; border-radius:3px; background:#0c0c18;
-  flex-shrink:1; min-height:0;
+  width:100%; max-width:100%; aspect-ratio:1;
+  max-height:clamp(28px, 18vw, 52px);
+  display:block; overflow:hidden; border-radius:2px; background:#0c0c18;
+  min-width:0; min-height:0;
 }
 .gp-btn .gp-thumb {
-  width:100%; height:100%; max-width:100%; max-height:100%;
-  display:block; object-fit:contain; object-position:center;
+  display:block; width:100%; height:100%;
+  max-width:100%; max-height:100%; min-width:0;
+  object-fit:contain; object-position:center;
 }
 .gp-btn .gp-label-row {
-  display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1.2;
-  width:100%; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  display:block; line-height:1.15;
+  width:100%; min-width:0; max-width:100%; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; font-size:7px; text-align:center;
 }
-.gp-btn .gp-icon { font-size:11px; line-height:1; }
 .gp-btn .gp-sub { font-size:7px; color:rgba(255,220,140,.55); letter-spacing:0; }
 
 /* saves area */
@@ -719,7 +882,6 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 </style>
 </head>
 <body>
-<div id="app-shell">
 <div id="sound-prefs-modal" class="sound-prefs-modal" role="dialog" aria-modal="true" aria-labelledby="startup-hero-title" aria-hidden="true">
   <div class="sound-prefs-box startup-prefs-box">
     <h2 id="startup-hero-title" class="startup-hero-title">Joseph Plateau's Light Drawing Simulator</h2>
@@ -732,27 +894,30 @@ input.ferr { border-color:rgba(255,80,80,.55); }
       </div>
     </div>
     <hr class="startup-divider" aria-hidden="true">
+    <div class="effect-prefs-section">
+      <p class="effect-prefs-lbl" data-i18n="modal.effectLabel"></p>
+      <p class="sound-prefs-desc" data-i18n="modal.effectDesc"></p>
+      <div class="sound-prefs-actions">
+        <button type="button" id="soundPrefOff" class="reset-btn sound-pref-btn" data-i18n="ui.off"></button>
+        <button type="button" id="soundPrefOn" class="reset-btn sound-pref-btn active-choice" data-i18n="ui.on"></button>
+      </div>
+    </div>
     <div class="lang-prefs-section">
       <p class="lang-prefs-lbl" data-i18n="modal.languageLabel"></p>
       <div class="lang-picker">
         <button type="button" id="langPickerBtn" class="reset-btn lang-picker-btn" aria-haspopup="listbox" aria-expanded="false">
-          <span id="langPickerLabel">English</span>
+          <span id="langPickerLabel">日本語</span>
           <span class="lang-picker-chevron" aria-hidden="true">▾</span>
         </button>
         <ul id="langPickerMenu" class="lang-picker-menu" role="listbox" hidden></ul>
       </div>
     </div>
-    <div class="effect-prefs-section">
-      <p class="effect-prefs-lbl" data-i18n="modal.effectLabel"></p>
-      <p class="sound-prefs-desc" data-i18n="modal.effectDesc"></p>
-      <div class="sound-prefs-actions">
-        <button type="button" id="soundPrefOff" class="reset-btn sound-pref-btn active-choice" data-i18n="ui.off"></button>
-        <button type="button" id="soundPrefOn" class="reset-btn sound-pref-btn" data-i18n="ui.on"></button>
-      </div>
-    </div>
+
   </div>
 </div>
+<div id="app-shell">
 <h1 class="app-site-title">Joseph Plateau's Light Drawing Simulator</h1>
+<div id="workspace">
 <div id="main-row">
   <div id="canvas-col">
     <div id="canvas-wrap">
@@ -768,14 +933,12 @@ input.ferr { border-color:rgba(255,80,80,.55); }
   </div>
   <aside id="side-panel">
     <section class="panel-section global-presets-section">
-      <div class="panel-section-title gp-section-title" data-i18n-label="globalPresets.platoTitle"></div>
+      <div class="panel-section-title gp-section-title" data-i18n="globalPresets.platoTitle"></div>
       <div id="global-presets"></div>
     </section>
     <div id="panel"></div>
-  </aside>
-</div>
-<div id="bottom-bar">
-  <section class="collapsible-section" id="save-collapsible">
+    <div id="panel-tools">
+      <section class="collapsible-section panel-tools-section" id="save-collapsible">
     <button type="button" class="collapsible-hdr" id="saveCollapsibleHdr" aria-expanded="false">
       <span class="chev">▶</span><span data-i18n-label="collapsible.save"></span>
     </button>
@@ -787,14 +950,17 @@ input.ferr { border-color:rgba(255,80,80,.55); }
       </div>
     </div>
   </section>
-  <section class="collapsible-section" id="batch-collapsible">
+  <section class="collapsible-section panel-tools-section" id="batch-collapsible">
     <button type="button" class="collapsible-hdr" id="batchCollapsibleHdr" aria-expanded="false">
       <span class="chev">▶</span><span data-i18n-label="collapsible.batch"></span>
     </button>
     <div class="collapsible-body is-collapsed" id="batchCollapsibleBody">
       <div id="batch-panel-host"></div>
     </div>
-  </section>
+      </section>
+    </div>
+  </aside>
+</div>
 </div>
 </div>
 <script>
@@ -810,7 +976,8 @@ initLang();
 
 function onLangChange() {
   fxStyleThumbsReady = false;
-  buildUI();
+  panelToolsBuilt = false;
+  buildUI({ full: true });
   renderSavesStrip();
   renderGlobalPresets();
   if (pairFxEditorRefresh) pairFxEditorRefresh();
@@ -885,27 +1052,45 @@ function applySizes() {
   document.documentElement.classList.toggle('layout-narrow', narrow);
   document.documentElement.classList.toggle('layout-phone', phone);
 
-  W = contentWidth();
-  const aspect = phone ? 0.82 : narrow ? 0.86 : 0.9;
-  let h = Math.round(W * aspect);
-  if (narrow) {
-    const maxH = Math.round(window.innerHeight * (phone ? 0.46 : 0.52));
-    h = Math.min(h, Math.max(220, maxH));
+  const wrap = document.getElementById('canvas-wrap');
+  let w = 0;
+  let h = 0;
+  if (wrap) {
+    const rect = wrap.getBoundingClientRect();
+    w = Math.floor(rect.width);
+    h = Math.floor(rect.height);
   }
-  H = h;
+  if (w < 80 || h < 80) {
+    w = contentWidth();
+    const aspect = phone ? 0.82 : narrow ? 0.86 : 0.9;
+    h = Math.round(w * aspect);
+    if (narrow) {
+      const maxH = Math.round(window.innerHeight * (phone ? 0.46 : 0.52));
+      h = Math.min(h, Math.max(220, maxH));
+    }
+  }
+  W = Math.max(280, w);
+  H = Math.max(200, h);
   canvas.width = W;
   canvas.height = H;
   trailCv.width = W;
   trailCv.height = H;
   canvas.style.width = '100%';
   canvas.style.maxWidth = '100%';
-  canvas.style.height = 'auto';
+  canvas.style.height = '100%';
 
   const panel = document.getElementById('panel');
   const sidePanel = document.getElementById('side-panel');
   if (sidePanel) {
-    if (!narrow) sidePanel.style.width = PANEL_W + 'px';
-    else sidePanel.style.width = '';
+    if (!narrow) {
+      sidePanel.style.width = PANEL_W + 'px';
+      sidePanel.style.maxWidth = '';
+      sidePanel.style.minWidth = '';
+    } else {
+      sidePanel.style.width = '100%';
+      sidePanel.style.maxWidth = '100%';
+      sidePanel.style.minWidth = '0';
+    }
   }
   if (panel) panel.style.width = narrow ? '' : '100%';
   const savesArea = document.getElementById('saves-area');
@@ -916,6 +1101,10 @@ function applySizes() {
 window.addEventListener('resize', () => { applySizes(); });
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => { applySizes(); });
+}
+const canvasWrapEl = document.getElementById('canvas-wrap');
+if (canvasWrapEl && typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(() => { applySizes(); }).observe(canvasWrapEl);
 }
 
 function wx(x) { return W / 2 + (x - view.panX) * view.scale; }
@@ -1365,6 +1554,22 @@ function segX(p1,p2,p3,p4) {
   const t=(ex*dy2-ey*dx2)/d, u=(ex*dy1-ey*dx1)/d;
   if (t>=0&&t<=1&&u>=0&&u<=1) return {x:p1.x+t*dx1, y:p1.y+t*dy1};
   return null;
+}
+
+const PRESET_THUMB_PX = 38;
+
+function drawCanvasIntoThumb(dest, src) {
+  const w = dest.width;
+  const h = dest.height;
+  const ctx = dest.getContext('2d');
+  ctx.fillStyle = '#0c0c18';
+  ctx.fillRect(0, 0, w, h);
+  if (!src || !src.width || !src.height) return;
+  const scale = Math.min(w / src.width, h / src.height);
+  const dw = src.width * scale;
+  const dh = src.height * scale;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(src, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 
 // ─── Draw pts to canvas (auto-scaled) ────────────────────────────────
@@ -2078,7 +2283,7 @@ function fitViewToShapes(padFrac = 0.12) {
 function applyRandomPlayback(opts = {}) {
   if (batchActive || isRecording) return;
   if (!opts.fromDemo) stopDemo();
-  const count = rndInt(2, 3);
+  const count = 3;
   shapes.length = 0;
   buildRandomShapesInView(count).forEach(s => {
     if (s) shapes.push(s);
@@ -2090,8 +2295,7 @@ function applyRandomPlayback(opts = {}) {
   shapes.forEach(s => { s.paused = false; s.angle = 0; });
   clearTrails();
   clearSimHistory();
-  fitViewToShapes(0.14);
-  buildUI();
+  buildUI({ keepChrome: true });
   updatePlaybackUI();
   if (opts.fromDemo) resetDemoCountdown();
 }
@@ -2120,6 +2324,7 @@ function applyPresetConfig(shapeIdx, spec, applyFormula) {
     }
   }
   resetPlaybackAfterPreset();
+  fitViewToShapes(0.12);
 }
 
 function applyParabolaFromPanel(i, vals) {
@@ -2226,10 +2431,13 @@ function buildPresetStripForShape(strip, shapeIdx, shape, applyFormula, onFreeha
     item.className = 'p-item';
     if (spec.type === 'config') item.dataset.presetId = spec.id;
 
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'p-item-thumb-wrap';
     const thumbCv = document.createElement('canvas');
-    thumbCv.width = thumbCv.height = 38;
-    thumbCv.getContext('2d').drawImage(spec._cv, 0, 0);
-    item.appendChild(thumbCv);
+    thumbCv.width = thumbCv.height = PRESET_THUMB_PX;
+    drawCanvasIntoThumb(thumbCv, spec._cv);
+    thumbWrap.appendChild(thumbCv);
+    item.appendChild(thumbWrap);
 
     const lbl = document.createElement('span');
     lbl.textContent = presetLabel(spec);
@@ -2263,8 +2471,9 @@ function updateShapeThumb(i) {
 }
 
 function makePresetCanvas(pr) {
-  const cv = document.createElement('canvas'); cv.width=cv.height=38;
-  cv.getContext('2d').drawImage(pr._cv, 0, 0);
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = PRESET_THUMB_PX;
+  drawCanvasIntoThumb(cv, pr._cv);
   return cv;
 }
 
@@ -2356,6 +2565,7 @@ function syncPairFxDefaultsFromGlobals() {
 syncPairFxDefaultsFromGlobals();
 
 let fxStyleThumbsReady = false;
+const fxVisualThumbById = {};
 
 const hitFxBursts = [];
 const hitFxChains = [];
@@ -2967,8 +3177,15 @@ function buildSoundFxThumb(styleId, size) {
 function ensureFxStyleThumbs() {
   if (fxStyleThumbsReady) return;
   const sz = 34;
-  getVisualFxStyles().forEach(s => { s.thumb = buildVisualFxThumb(s.id, sz); });
+  for (let id = 0; id <= 9; id++) {
+    fxVisualThumbById[id] = buildVisualFxThumb(id, sz);
+  }
   fxStyleThumbsReady = true;
+}
+
+function getVisualFxStylesForUI() {
+  ensureFxStyleThumbs();
+  return getVisualFxStyles().map(s => ({ ...s, thumb: fxVisualThumbById[s.id] }));
 }
 
 function worldSpan() {
@@ -3004,6 +3221,15 @@ function drawGrid() {
     if (Math.abs(y) < 1e-6) continue;
     ctx.beginPath(); ctx.moveTo(0, wy(y)); ctx.lineTo(W, wy(y)); ctx.stroke();
     ctx.fillText(String(Math.round(y)), wx(0) + 3, wy(y) - 2);
+  }
+  if (!showAxes) {
+    ctx.strokeStyle = 'rgba(255,255,255,.38)';
+    if (x0 <= 0 && x1 >= 0) {
+      ctx.beginPath(); ctx.moveTo(wx(0), 0); ctx.lineTo(wx(0), H); ctx.stroke();
+    }
+    if (y0 <= 0 && y1 >= 0) {
+      ctx.beginPath(); ctx.moveTo(0, wy(0)); ctx.lineTo(W, wy(0)); ctx.stroke();
+    }
   }
   ctx.restore();
 }
@@ -3401,10 +3627,10 @@ function frame(ts) {
 
 // ─── Global presets ──────────────────────────────────────────────────
 const GLOBAL_PRESET_SLOTS = [
-  { slot: 1, name: 'no.1', icon: '①', storageKey: 'locus_global_preset_1' },
-  { slot: 2, name: 'no.2', icon: '②', storageKey: 'locus_global_preset_2' },
-  { slot: 3, name: 'no.3', icon: '③', storageKey: 'locus_global_preset_3' },
-  { slot: 4, name: 'no.4', icon: '④', storageKey: 'locus_global_preset_4' },
+  { slot: 1, name: 'no.1', storageKey: 'locus_global_preset_1' },
+  { slot: 2, name: 'no.2', storageKey: 'locus_global_preset_2' },
+  { slot: 3, name: 'no.3', storageKey: 'locus_global_preset_3' },
+  { slot: 4, name: 'no.4', storageKey: 'locus_global_preset_4' },
 ];
 
 const GLOBAL_PRESET_BUILTIN_SLOTS = new Set([1, 2, 3, 4]);
@@ -3582,8 +3808,10 @@ function captureTrailThumbFromCanvas(size, trailsSrc) {
   return cv;
 }
 
-const GLOBAL_THUMB_RENDER_SIZE = 168;
-const GLOBAL_THUMB_DISPLAY_SIZE = 48;
+/** 切り出し用（高解像度でシミュレーション結果をキャプチャ） */
+const GLOBAL_THUMB_RENDER_SIZE = 256;
+/** 保存・img の実ピクセル（CSS 表示は .gp-thumb-wrap で小さくする） */
+const GLOBAL_THUMB_DISPLAY_SIZE = 128;
 
 function buildGlobalPresetThumb(data) {
   const empty = () => {
@@ -3652,6 +3880,7 @@ function loadGlobalPresetSlot(slot) {
   }
   assignRandomPairEffects();
   resetPlaybackAfterPreset();
+  fitViewToShapes(0.12);
 }
 
 function renderGlobalPresets() {
@@ -3671,7 +3900,7 @@ function renderGlobalPresets() {
     btn.appendChild(thumbWrap);
     const label = document.createElement('span');
     label.className = 'gp-label-row';
-    label.innerHTML = `<span class="gp-icon">${def.icon}</span><span>${def.name}</span>`;
+    label.textContent = def.name;
     btn.appendChild(label);
     btn.title = def.name;
     btn.addEventListener('click', () => loadGlobalPresetSlot(def.slot));
@@ -3916,6 +4145,21 @@ function setTransportOptPair(btnOn, btnOff, isOn) {
   btnOff.classList.toggle('active-choice', !isOn);
 }
 
+function makeTransportToggleBtn(labelText, isOn, title) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'reset-btn transport-opt-btn transport-toggle-btn' + (isOn ? ' active-choice' : '');
+  b.textContent = labelText;
+  b.title = title;
+  b.setAttribute('aria-pressed', String(isOn));
+  return b;
+}
+
+function syncTransportToggleBtn(btn, isOn) {
+  btn.classList.toggle('active-choice', isOn);
+  btn.setAttribute('aria-pressed', String(isOn));
+}
+
 function makeTransportUtilsLine(labelText, buttons) {
   const line = document.createElement('div');
   line.className = 'transport-utils-line';
@@ -3974,7 +4218,8 @@ function makeFxControlBlock(label, enabled, styleId, styles, onEnabled, onStyle)
 function bindCollapsibleToggle(hdrId, bodyId) {
   const hdr = document.getElementById(hdrId);
   const body = document.getElementById(bodyId);
-  if (!hdr || !body) return;
+  if (!hdr || !body || hdr.dataset.collapsibleBound) return;
+  hdr.dataset.collapsibleBound = '1';
   const sync = () => {
     const expanded = !body.classList.contains('is-collapsed');
     hdr.setAttribute('aria-expanded', String(expanded));
@@ -4016,9 +4261,151 @@ function updateShapeDetailsExpanded() {
   });
 }
 
-function buildUI() {
+function buildPanelTools() {
+  ['saveCollapsibleHdr', 'batchCollapsibleHdr'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) delete el.dataset.collapsibleBound;
+  });
+  const saveBarHost = document.getElementById('save-bar-host');
+  const saveExportHost = document.getElementById('save-export-host');
+  if (saveBarHost) {
+    saveBarHost.innerHTML = '';
+    const snapSec = document.createElement('div');
+    snapSec.className = 'save-subsection';
+    const snapLbl = document.createElement('div');
+    snapLbl.className = 'save-subsection-lbl';
+    snapLbl.textContent = L('save.snapshot');
+    const saveBar = document.createElement('div');
+    saveBar.className = 'save-bar';
+    saveBar.innerHTML = `
+      <span class="save-bar-lbl">${L('save.name')}</span>
+      <input type="text" id="saveNameInp" placeholder="${L('save.placeholder')}">
+      <button class="save-bar-btn" id="saveBtn">${L('save.btn')}</button>
+    `;
+    snapSec.append(snapLbl, saveBar);
+    saveBarHost.appendChild(snapSec);
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const name = document.getElementById('saveNameInp').value.trim();
+      saveState(name);
+      document.getElementById('saveNameInp').value = '';
+    });
+  }
+
+  if (saveExportHost) {
+    saveExportHost.innerHTML = '';
+    const exportSec = document.createElement('div');
+    exportSec.className = 'save-subsection';
+    const exportLbl = document.createElement('div');
+    exportLbl.className = 'save-subsection-lbl';
+    exportLbl.textContent = L('save.export');
+    const exportActions = document.createElement('div');
+    exportActions.className = 'save-export-actions';
+    const pngBtn = document.createElement('button');
+    pngBtn.className = 'reset-btn';
+    pngBtn.textContent = L('save.png');
+    pngBtn.title = t('save.pngTitle');
+    pngBtn.addEventListener('click', exportPng);
+    const recStartBtn = document.createElement('button');
+    recStartBtn.id = 'recStartBtn';
+    recStartBtn.className = 'reset-btn rec-start';
+    recStartBtn.textContent = L('save.recStart');
+    recStartBtn.addEventListener('click', () => {
+      startRecording().catch(e => alert(e && e.message ? e.message : String(e)));
+    });
+    const recStopBtn = document.createElement('button');
+    recStopBtn.id = 'recStopBtn';
+    recStopBtn.className = 'reset-btn rec-stop';
+    recStopBtn.textContent = L('save.recStop');
+    recStopBtn.disabled = true;
+    recStopBtn.addEventListener('click', stopRecording);
+    exportActions.append(pngBtn, recStartBtn, recStopBtn);
+    exportSec.append(exportLbl, exportActions);
+
+    const settingsSec = document.createElement('div');
+    settingsSec.className = 'save-subsection';
+    const settingsLbl = document.createElement('div');
+    settingsLbl.className = 'save-subsection-lbl';
+    settingsLbl.textContent = L('save.settings');
+    const settingsActions = document.createElement('div');
+    settingsActions.className = 'save-export-actions save-export-actions--pair';
+    const jsonOutBtn = document.createElement('button');
+    jsonOutBtn.className = 'reset-btn';
+    jsonOutBtn.textContent = L('save.jsonOut');
+    jsonOutBtn.title = t('save.jsonOutTitle');
+    jsonOutBtn.addEventListener('click', exportJson);
+    const jsonInLbl = document.createElement('label');
+    jsonInLbl.className = 'reset-btn';
+    jsonInLbl.style.cursor = 'pointer';
+    jsonInLbl.textContent = L('save.jsonIn');
+    jsonInLbl.title = t('save.jsonInTitle');
+    const jsonInp = document.createElement('input');
+    jsonInp.type = 'file';
+    jsonInp.accept = 'application/json,.json';
+    jsonInp.style.display = 'none';
+    jsonInLbl.appendChild(jsonInp);
+    jsonInp.addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (f) importJsonFile(f);
+      jsonInp.value = '';
+    });
+    settingsActions.append(jsonOutBtn, jsonInLbl);
+    settingsSec.append(settingsLbl, settingsActions);
+
+    saveExportHost.append(exportSec, settingsSec);
+  }
+
+  const batchPanel = document.createElement('div');
+  batchPanel.className = 'batch-panel';
+    batchPanel.innerHTML = `
+    <div class="batch-title">${L('batch.title')}</div>
+    <div class="cf">
+      <span class="cf-lbl">${L('batch.omegaRange')}</span>
+      <input type="number" class="w60" id="batchOmegaMin" value="-5" step="0.1">
+      <span class="sep">${L('batch.to')}</span>
+      <input type="number" class="w60" id="batchOmegaMax" value="5" step="0.1">
+      <span class="sep">${L('batch.step')}</span>
+      <input type="number" class="w60" id="batchOmegaStep" value="0.1" step="0.1" min="0.01">
+    </div>
+    <div class="cf">
+      <span class="cf-lbl">${L('batch.seconds')}</span>
+      <input type="number" class="w60" id="batchDuration" value="10" min="0.5" step="0.5">
+      <span class="sep">${L('batch.perPattern')}</span>
+    </div>
+    <div class="desc">${t('batch.desc')}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button type="button" class="reset-btn" id="batchExportBtn">${L('batch.export')}</button>
+      <button type="button" class="reset-btn" id="batchCancelBtn" disabled>${L('batch.cancel')}</button>
+    </div>
+    <div class="batch-progress">
+      <progress id="batchProgressBar" value="0" max="1"></progress>
+      <div id="batchProgress"></div>
+    </div>
+  `;
+  const batchHost = document.getElementById('batch-panel-host');
+  if (batchHost) {
+    batchHost.innerHTML = '';
+    batchPanel.style.marginTop = '0';
+    batchPanel.style.paddingTop = '0';
+    batchPanel.style.borderTop = 'none';
+    batchHost.appendChild(batchPanel);
+  }
+  document.getElementById('batchExportBtn').addEventListener('click', () => {
+    runOmegaBatchExport().catch(e => alert(e && e.message ? e.message : String(e)));
+  });
+  document.getElementById('batchCancelBtn').addEventListener('click', () => { batchCancel = true; });
+  bindCollapsibleToggle('saveCollapsibleHdr', 'saveCollapsibleBody');
+  bindCollapsibleToggle('batchCollapsibleHdr', 'batchCollapsibleBody');
+}
+let panelToolsBuilt = false;
+
+function buildUI(opts = {}) {
   const panel = document.getElementById('panel');
-  panel.innerHTML = '';
+  const keepChrome = !opts.full && opts.keepChrome !== false && panel.querySelector('.transport-block');
+  if (!keepChrome) {
+    panel.innerHTML = '';
+  } else {
+    panel.querySelectorAll('.tab-row, .card-area, #pairs-section').forEach(n => n.remove());
+  }
 
   const tabRow  = document.createElement('div'); tabRow.className='tab-row';
   const cardArea= document.createElement('div'); cardArea.className='card-area';
@@ -4281,6 +4668,9 @@ function buildUI() {
   styleActiveTabs();
   tabRow.addEventListener('click', styleActiveTabs);
 
+  const onTransportClick = () => unlockHitAudio();
+
+  if (!keepChrome) {
   const transportBlock = document.createElement('div');
   transportBlock.className = 'transport-block';
   const transportRow = document.createElement('div');
@@ -4316,35 +4706,39 @@ function buildUI() {
   randomRow.appendChild(randomPlayBtn);
   const utilsWrap = document.createElement('div');
   utilsWrap.className = 'transport-utils-rows';
-  const axisShowBtn = makeTransportOptBtn(t('ui.on'), showAxes);
-  const axisHideBtn = makeTransportOptBtn(t('ui.off'), !showAxes);
-  axisShowBtn.title = t('transport.axesShow');
-  axisHideBtn.title = t('transport.axesHide');
-  const gridShowBtn = makeTransportOptBtn(t('ui.on'), showGrid);
-  const gridHideBtn = makeTransportOptBtn(t('ui.off'), !showGrid);
-  gridShowBtn.title = t('transport.gridShow');
-  gridHideBtn.title = t('transport.gridHide');
-  const onTransportClick = () => unlockHitAudio();
+  const toggleRow = document.createElement('div');
+  toggleRow.className = 'transport-toggle-row';
+  const axesBtn = makeTransportToggleBtn(
+    t('transport.axes'),
+    showAxes,
+    showAxes ? t('transport.axesHide') : t('transport.axesShow'),
+  );
+  const gridBtn = makeTransportToggleBtn(
+    t('transport.grid'),
+    showGrid,
+    showGrid ? t('transport.gridHide') : t('transport.gridShow'),
+  );
+  toggleRow.append(axesBtn, gridBtn);
+  const resetRow = document.createElement('div');
+  resetRow.className = 'transport-reset-row';
+  const timingResetBtn = document.createElement('button');
+  timingResetBtn.type = 'button';
+  timingResetBtn.id = 'timingResetBtn';
+  timingResetBtn.className = 'reset-btn transport-opt-btn transport-reset-btn';
+  timingResetBtn.textContent = t('transport.timingReset');
+  timingResetBtn.title = t('transport.timingResetTitle');
+  const viewResetBtn = document.createElement('button');
+  viewResetBtn.type = 'button';
+  viewResetBtn.id = 'viewResetBtn';
+  viewResetBtn.className = 'reset-btn transport-opt-btn transport-reset-btn';
+  viewResetBtn.textContent = t('transport.viewReset');
+  viewResetBtn.title = t('transport.viewResetTitle');
+  resetRow.append(timingResetBtn, viewResetBtn);
+  utilsWrap.append(toggleRow, resetRow);
   randomPlayBtn.addEventListener('click', () => {
     onTransportClick();
     applyRandomPlayback();
   });
-  const timingResetBtn = document.createElement('button');
-  timingResetBtn.type = 'button';
-  timingResetBtn.className = 'reset-btn transport-opt-btn';
-  timingResetBtn.textContent = L('transport.reset');
-  timingResetBtn.title = t('transport.timingResetTitle');
-  const viewResetBtn = document.createElement('button');
-  viewResetBtn.type = 'button';
-  viewResetBtn.className = 'reset-btn transport-opt-btn';
-  viewResetBtn.textContent = L('transport.reset');
-  viewResetBtn.title = t('transport.viewResetTitle');
-  utilsWrap.append(
-    makeTransportUtilsLine(L('transport.axes'), [axisShowBtn, axisHideBtn]),
-    makeTransportUtilsLine(L('transport.grid'), [gridShowBtn, gridHideBtn]),
-    makeTransportUtilsLine(L('transport.timing'), [timingResetBtn]),
-    makeTransportUtilsLine(L('transport.view'), [viewResetBtn]),
-  );
   transportBlock.append(transportRow, randomRow, utilsWrap);
   panel.appendChild(transportBlock);
 
@@ -4431,9 +4825,6 @@ function buildUI() {
   slidersBody.appendChild(durRow);
   slidersSec.appendChild(slidersBody);
   panel.appendChild(slidersSec);
-
-  panel.appendChild(tabRow);
-  panel.appendChild(cardArea);
   allPauseBtn.addEventListener('click', function () {
     const anyRunning = shapes.some(s => !s.paused);
     shapes.forEach(s => { s.paused = anyRunning; });
@@ -4452,28 +4843,26 @@ function buildUI() {
     onTransportClick();
     resetView();
   });
-  axisShowBtn.addEventListener('click', () => {
+  axesBtn.addEventListener('click', () => {
     onTransportClick();
-    showAxes = true;
-    setTransportOptPair(axisShowBtn, axisHideBtn, true);
+    showAxes = !showAxes;
+    syncTransportToggleBtn(axesBtn, showAxes);
+    axesBtn.title = showAxes ? t('transport.axesHide') : t('transport.axesShow');
   });
-  axisHideBtn.addEventListener('click', () => {
+  gridBtn.addEventListener('click', () => {
     onTransportClick();
-    showAxes = false;
-    setTransportOptPair(axisShowBtn, axisHideBtn, false);
+    showGrid = !showGrid;
+    syncTransportToggleBtn(gridBtn, showGrid);
+    gridBtn.title = showGrid ? t('transport.gridHide') : t('transport.gridShow');
   });
-  gridShowBtn.addEventListener('click', () => {
-    onTransportClick();
-    showGrid = true;
-    setTransportOptPair(gridShowBtn, gridHideBtn, true);
-  });
-  gridHideBtn.addEventListener('click', () => {
-    onTransportClick();
-    showGrid = false;
-    setTransportOptPair(gridShowBtn, gridHideBtn, false);
-  });
+  bindCollapsibleToggle('slidersCollapsibleHdr', 'slidersCollapsibleBody');
+  }
+
+  panel.appendChild(tabRow);
+  panel.appendChild(cardArea);
   // ── 交点ペア ─────────────────────────────────────────────────────
   const pairsSec = document.createElement('section');
+  pairsSec.id = 'pairs-section';
   pairsSec.className = 'panel-section';
   const pairsTitle = document.createElement('div');
   pairsTitle.className = 'panel-section-title';
@@ -4537,7 +4926,7 @@ function buildUI() {
     L('pairs.effect'),
     true,
     0,
-    getVisualFxStyles(),
+    getVisualFxStylesForUI(),
     en => {
       onTransportClick();
       setPairFx(selectedPairFxKey, { visualEnabled: en, soundEnabled: en });
@@ -4569,140 +4958,10 @@ function buildUI() {
     panel.appendChild(pairsSec);
   }
 
-
-  const saveBarHost = document.getElementById('save-bar-host');
-  const saveExportHost = document.getElementById('save-export-host');
-  if (saveBarHost) {
-    saveBarHost.innerHTML = '';
-    const snapSec = document.createElement('div');
-    snapSec.className = 'save-subsection';
-    const snapLbl = document.createElement('div');
-    snapLbl.className = 'save-subsection-lbl';
-    snapLbl.textContent = L('save.snapshot');
-    const saveBar = document.createElement('div');
-    saveBar.className = 'save-bar';
-    saveBar.innerHTML = `
-      <span class="save-bar-lbl">${L('save.name')}</span>
-      <input type="text" id="saveNameInp" placeholder="${L('save.placeholder')}">
-      <button class="save-bar-btn" id="saveBtn">${L('save.btn')}</button>
-    `;
-    snapSec.append(snapLbl, saveBar);
-    saveBarHost.appendChild(snapSec);
-    document.getElementById('saveBtn').addEventListener('click', () => {
-      const name = document.getElementById('saveNameInp').value.trim();
-      saveState(name);
-      document.getElementById('saveNameInp').value = '';
-    });
+  if (!panelToolsBuilt || opts.full) {
+    buildPanelTools();
+    panelToolsBuilt = true;
   }
-
-  if (saveExportHost) {
-    saveExportHost.innerHTML = '';
-    const exportSec = document.createElement('div');
-    exportSec.className = 'save-subsection';
-    const exportLbl = document.createElement('div');
-    exportLbl.className = 'save-subsection-lbl';
-    exportLbl.textContent = L('save.export');
-    const exportActions = document.createElement('div');
-    exportActions.className = 'save-export-actions';
-    const pngBtn = document.createElement('button');
-    pngBtn.className = 'reset-btn';
-    pngBtn.textContent = L('save.png');
-    pngBtn.title = t('save.pngTitle');
-    pngBtn.addEventListener('click', exportPng);
-    const recStartBtn = document.createElement('button');
-    recStartBtn.id = 'recStartBtn';
-    recStartBtn.className = 'reset-btn rec-start';
-    recStartBtn.textContent = L('save.recStart');
-    recStartBtn.addEventListener('click', () => {
-      startRecording().catch(e => alert(e && e.message ? e.message : String(e)));
-    });
-    const recStopBtn = document.createElement('button');
-    recStopBtn.id = 'recStopBtn';
-    recStopBtn.className = 'reset-btn rec-stop';
-    recStopBtn.textContent = L('save.recStop');
-    recStopBtn.disabled = true;
-    recStopBtn.addEventListener('click', stopRecording);
-    exportActions.append(pngBtn, recStartBtn, recStopBtn);
-    exportSec.append(exportLbl, exportActions);
-
-    const settingsSec = document.createElement('div');
-    settingsSec.className = 'save-subsection';
-    const settingsLbl = document.createElement('div');
-    settingsLbl.className = 'save-subsection-lbl';
-    settingsLbl.textContent = L('save.settings');
-    const settingsActions = document.createElement('div');
-    settingsActions.className = 'save-export-actions save-export-actions--pair';
-    const jsonOutBtn = document.createElement('button');
-    jsonOutBtn.className = 'reset-btn';
-    jsonOutBtn.textContent = L('save.jsonOut');
-    jsonOutBtn.title = t('save.jsonOutTitle');
-    jsonOutBtn.addEventListener('click', exportJson);
-    const jsonInLbl = document.createElement('label');
-    jsonInLbl.className = 'reset-btn';
-    jsonInLbl.style.cursor = 'pointer';
-    jsonInLbl.textContent = L('save.jsonIn');
-    jsonInLbl.title = t('save.jsonInTitle');
-    const jsonInp = document.createElement('input');
-    jsonInp.type = 'file';
-    jsonInp.accept = 'application/json,.json';
-    jsonInp.style.display = 'none';
-    jsonInLbl.appendChild(jsonInp);
-    jsonInp.addEventListener('change', e => {
-      const f = e.target.files && e.target.files[0];
-      if (f) importJsonFile(f);
-      jsonInp.value = '';
-    });
-    settingsActions.append(jsonOutBtn, jsonInLbl);
-    settingsSec.append(settingsLbl, settingsActions);
-
-    saveExportHost.append(exportSec, settingsSec);
-  }
-
-  const batchPanel = document.createElement('div');
-  batchPanel.className = 'batch-panel';
-    batchPanel.innerHTML = `
-    <div class="batch-title">${L('batch.title')}</div>
-    <div class="cf">
-      <span class="cf-lbl">${L('batch.omegaRange')}</span>
-      <input type="number" class="w60" id="batchOmegaMin" value="-5" step="0.1">
-      <span class="sep">${L('batch.to')}</span>
-      <input type="number" class="w60" id="batchOmegaMax" value="5" step="0.1">
-      <span class="sep">${L('batch.step')}</span>
-      <input type="number" class="w60" id="batchOmegaStep" value="0.1" step="0.1" min="0.01">
-    </div>
-    <div class="cf">
-      <span class="cf-lbl">${L('batch.seconds')}</span>
-      <input type="number" class="w60" id="batchDuration" value="10" min="0.5" step="0.5">
-      <span class="sep">${L('batch.perPattern')}</span>
-    </div>
-    <div class="desc">${t('batch.desc')}</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button type="button" class="reset-btn" id="batchExportBtn">${L('batch.export')}</button>
-      <button type="button" class="reset-btn" id="batchCancelBtn" disabled>${L('batch.cancel')}</button>
-    </div>
-    <div class="batch-progress">
-      <progress id="batchProgressBar" value="0" max="1"></progress>
-      <div id="batchProgress"></div>
-    </div>
-  `;
-  const batchHost = document.getElementById('batch-panel-host');
-  if (batchHost) {
-    batchHost.innerHTML = '';
-    batchPanel.style.marginTop = '0';
-    batchPanel.style.paddingTop = '0';
-    batchPanel.style.borderTop = 'none';
-    batchHost.appendChild(batchPanel);
-  } else {
-    panel.appendChild(batchPanel);
-  }
-  document.getElementById('batchExportBtn').addEventListener('click', () => {
-    runOmegaBatchExport().catch(e => alert(e && e.message ? e.message : String(e)));
-  });
-  document.getElementById('batchCancelBtn').addEventListener('click', () => { batchCancel = true; });
-
-  bindCollapsibleToggle('saveCollapsibleHdr', 'saveCollapsibleBody');
-  bindCollapsibleToggle('batchCollapsibleHdr', 'batchCollapsibleBody');
-  bindCollapsibleToggle('slidersCollapsibleHdr', 'slidersCollapsibleBody');
   updateShapeDetailsExpanded();
   updatePlaybackUI();
   if (isRecording) updateRecordUI(true);
@@ -5187,6 +5446,9 @@ function showSoundPrefsModal() {
   }
   applyStaticI18n();
   initLangPicker(() => onLangChange());
+  const defaultEffect = intersectionEffectEnabled;
+  offBtn.classList.toggle('active-choice', !defaultEffect);
+  onBtn.classList.toggle('active-choice', defaultEffect);
   modal.classList.add('visible');
   modal.setAttribute('aria-hidden', 'false');
   const pickEffect = enableEffect => {
