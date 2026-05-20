@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>交点の軌跡</title>
+<title>Joseph Plateau's Light Drawing Simulator</title>
 <script src="vendor/math.min.js"></script>
 <script src="vendor/fflate.min.js"></script>
+<script src="i18n/locus-i18n.js"></script>
+<script src="i18n/locus-i18n-locales.js"></script>
 <script src="presets/global_presets_data.js"></script>
 <style>
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
@@ -25,7 +27,18 @@ body {
   -webkit-text-size-adjust:100%;
   overflow-x:hidden;
 }
-h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-soft); width:100%; max-width:1280px; }
+.app-site-title {
+  width:100%; max-width:1280px; margin:0;
+  font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif;
+  font-size:clamp(1.25rem, 2.8vw + 0.5rem, 2rem);
+  font-weight:400; line-height:1.2; letter-spacing:.03em;
+  color:#f6f2ea;
+  text-shadow:0 0 40px rgba(200,220,255,.12), 0 1px 0 rgba(0,0,0,.4);
+}
+.app-site-title em {
+  font-style:italic; font-weight:400;
+  color:rgba(255,248,235,.92);
+}
 
 #app-shell { width:100%; max-width:1280px; display:flex; flex-direction:column; gap:10px; }
 
@@ -88,6 +101,68 @@ h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-
 .sound-pref-btn {
   min-width:88px; padding:8px 16px; font-size:12px;
 }
+.startup-prefs-box {
+  width:min(440px, 94vw); gap:16px; text-align:left;
+  max-height:min(92vh, 720px); overflow-x:hidden; overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.startup-hero-title {
+  font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif;
+  font-size:clamp(1.1rem, 2.4vw + 0.4rem, 1.45rem);
+  font-weight:400; line-height:1.25; letter-spacing:.02em;
+  color:#faf6ee; text-align:center; margin:0;
+  text-shadow:0 0 28px rgba(220,200,255,.15);
+}
+.startup-intro {
+  display:flex; flex-direction:column; gap:10px;
+  font-size:11px; line-height:1.68; color:var(--text-soft);
+}
+.startup-intro p { margin:0; }
+.startup-credit {
+  margin-top:2px; padding-top:12px;
+  border-top:1px solid rgba(255,255,255,.1);
+  text-align:center; font-size:10px; color:var(--text-muted);
+  letter-spacing:.04em; line-height:1.5;
+}
+.startup-credit a {
+  color:rgba(170,195,255,.9); text-decoration:none;
+  word-break:break-all;
+}
+.startup-credit a:hover { color:#ddf; text-decoration:underline; }
+.startup-divider {
+  border:none; height:1px; margin:2px 0 0;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+}
+.startup-prefs-box .lang-prefs-section,
+.startup-prefs-box .effect-prefs-section { text-align:center; }
+.lang-prefs-section { display:flex; flex-direction:column; gap:8px; text-align:center; }
+.lang-prefs-lbl, .effect-prefs-lbl {
+  font-size:10px; color:var(--text-soft); letter-spacing:.12em;
+  text-transform:uppercase; margin:0;
+}
+.lang-picker { width:100%; max-width:280px; margin:0 auto; }
+.lang-picker-btn {
+  width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:9px 12px; font-size:12px; text-align:left;
+}
+.lang-picker-chevron { opacity:.65; font-size:10px; flex-shrink:0; }
+.lang-picker-menu {
+  position:relative; z-index:1;
+  width:100%; margin:6px 0 0; padding:4px; list-style:none;
+  max-height:min(11.5rem, 28vh); overflow-y:auto;
+  background:#1a1a2a; border:1px solid rgba(255,255,255,.16); border-radius:6px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+}
+.lang-picker-menu[hidden] { display:none; }
+.lang-picker-item {
+  width:100%; display:block; text-align:left; padding:8px 10px; font-size:12px;
+  border-radius:4px; border:1px solid transparent; background:transparent;
+}
+.lang-picker-item:hover { background:rgba(255,255,255,.08); }
+.lang-picker-item.active-choice {
+  background:rgba(160,180,255,.16); border-color:rgba(160,180,255,.32); color:#eef;
+}
+.effect-prefs-section { display:flex; flex-direction:column; gap:8px; }
 .rec-indicator {
   display:none; position:absolute; top:8px; right:8px;
   align-items:center; gap:6px; padding:4px 10px;
@@ -131,7 +206,12 @@ h1 { font-size:11px; font-weight:normal; letter-spacing:.22em; color:var(--text-
 
 @media (max-width: 640px) {
   body { padding:8px max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); gap:6px; }
-  h1 { font-size:9px; letter-spacing:.14em; text-align:center; line-height:1.4; }
+  .app-site-title {
+    font-size:clamp(1.05rem, 4.5vw, 1.35rem);
+    text-align:center; line-height:1.3; letter-spacing:.02em;
+  }
+  .startup-hero-title { font-size:1.15rem; }
+  .startup-intro { font-size:10px; }
   .transport-transport-row .transport-btn {
     min-height:48px; font-size:20px; padding:10px 8px;
   }
@@ -638,17 +718,39 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 </head>
 <body>
 <div id="app-shell">
-<div id="sound-prefs-modal" class="sound-prefs-modal" role="dialog" aria-modal="true" aria-labelledby="sound-prefs-title" aria-hidden="true">
-  <div class="sound-prefs-box">
-    <div id="sound-prefs-title" class="sound-prefs-title">エフェクト</div>
-    <p class="sound-prefs-desc">交点のエフェクト（映像・音）を有効にしますか？</p>
-    <div class="sound-prefs-actions">
-      <button type="button" id="soundPrefOff" class="reset-btn sound-pref-btn active-choice">OFF</button>
-      <button type="button" id="soundPrefOn" class="reset-btn sound-pref-btn">ON</button>
+<div id="sound-prefs-modal" class="sound-prefs-modal" role="dialog" aria-modal="true" aria-labelledby="startup-hero-title" aria-hidden="true">
+  <div class="sound-prefs-box startup-prefs-box">
+    <h2 id="startup-hero-title" class="startup-hero-title">Joseph Plateau's Light Drawing Simulator</h2>
+    <div class="startup-intro">
+      <p id="startup-intro-1">1820〜30年頃、ジョゼフ・プラトーが実験していた光の軌跡による像を生成する実験を再現するシミュレーターです。</p>
+      <p id="startup-intro-2">プラトーが書き残した、4つの図形の組み合わせを再現し、他の組み合わせ実験も行えるようにしました。プラトーはスリットの組み合わせや位置関係、回転方向と回転速度を書き残していないので、別の組み合わせの可能性もあります。</p>
+      <div class="startup-credit" translate="no">
+        <div>2026 Norihisa Hashimoto</div>
+        <a href="https://zeroworks.jp/" target="_blank" rel="noopener noreferrer">https://zeroworks.jp/</a>
+      </div>
+    </div>
+    <hr class="startup-divider" aria-hidden="true">
+    <div class="lang-prefs-section">
+      <p class="lang-prefs-lbl" data-i18n="modal.languageLabel"></p>
+      <div class="lang-picker">
+        <button type="button" id="langPickerBtn" class="reset-btn lang-picker-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span id="langPickerLabel">English</span>
+          <span class="lang-picker-chevron" aria-hidden="true">▾</span>
+        </button>
+        <ul id="langPickerMenu" class="lang-picker-menu" role="listbox" hidden></ul>
+      </div>
+    </div>
+    <div class="effect-prefs-section">
+      <p class="effect-prefs-lbl" data-i18n="modal.effectLabel"></p>
+      <p class="sound-prefs-desc" data-i18n="modal.effectDesc"></p>
+      <div class="sound-prefs-actions">
+        <button type="button" id="soundPrefOff" class="reset-btn sound-pref-btn active-choice" data-i18n="ui.off"></button>
+        <button type="button" id="soundPrefOn" class="reset-btn sound-pref-btn" data-i18n="ui.on"></button>
+      </div>
     </div>
   </div>
 </div>
-<h1>交点の軌跡 — LOCUS OF INTERSECTIONS</h1>
+<h1 class="app-site-title">Joseph Plateau's Light Drawing Simulator</h1>
 <div id="main-row">
   <div id="canvas-col">
     <div id="canvas-wrap">
@@ -656,15 +758,15 @@ input.ferr { border-color:rgba(255,80,80,.55); }
       <div id="rec-indicator" class="rec-indicator" aria-hidden="true">
         <span class="rec-dot"></span> REC <span id="rec-time">0:00</span><span id="rec-status"></span>
       </div>
-      <span class="canvas-hint canvas-hint--desktop">ホイール:拡大縮小 · Shift+ドラッグ:移動 · ダブルクリック:ビューリセット</span>
-      <span class="canvas-hint canvas-hint--mobile">1本指:移動 · 2本指:拡大縮小 · ダブルタップ:リセット · ドラッグ:図形</span>
-      <div id="demo-banner" aria-hidden="true">デモ動作中</div>
+      <span class="canvas-hint canvas-hint--desktop" data-i18n="canvas.hintDesktop"></span>
+      <span class="canvas-hint canvas-hint--mobile" data-i18n="canvas.hintMobile"></span>
+      <div id="demo-banner" aria-hidden="true" data-i18n="demo.banner"></div>
       <div id="demo-countdown" aria-hidden="true"></div>
     </div>
   </div>
   <aside id="side-panel">
     <section class="panel-section global-presets-section">
-      <div class="panel-section-title gp-section-title">ジョゼフ・プラトーの残した4形態</div>
+      <div class="panel-section-title gp-section-title" data-i18n-label="globalPresets.platoTitle"></div>
       <div id="global-presets"></div>
     </section>
     <div id="panel"></div>
@@ -673,7 +775,7 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 <div id="bottom-bar">
   <section class="collapsible-section" id="save-collapsible">
     <button type="button" class="collapsible-hdr" id="saveCollapsibleHdr" aria-expanded="false">
-      <span class="chev">▶</span><span>保存</span>
+      <span class="chev">▶</span><span data-i18n-label="collapsible.save"></span>
     </button>
     <div class="collapsible-body is-collapsed" id="saveCollapsibleBody">
       <div class="save-panel-inner">
@@ -685,7 +787,7 @@ input.ferr { border-color:rgba(255,80,80,.55); }
   </section>
   <section class="collapsible-section" id="batch-collapsible">
     <button type="button" class="collapsible-hdr" id="batchCollapsibleHdr" aria-expanded="false">
-      <span class="chev">▶</span><span>ω 総当りバッチ</span>
+      <span class="chev">▶</span><span data-i18n-label="collapsible.batch"></span>
     </button>
     <div class="collapsible-body is-collapsed" id="batchCollapsibleBody">
       <div id="batch-panel-host"></div>
@@ -695,6 +797,23 @@ input.ferr { border-color:rgba(255,80,80,.55); }
 </div>
 <script>
 'use strict';
+
+const { t, L, setLang, initLang, applyStaticI18n, initLangPicker, closeLangPickerMenu, getVisualFxStyles } = window.LocusI18n;
+
+function presetLabel(spec) {
+  const key = spec.presetKey || spec.id;
+  return key ? L(`preset.${key}`) : spec.name;
+}
+initLang();
+
+function onLangChange() {
+  fxStyleThumbsReady = false;
+  buildUI();
+  renderSavesStrip();
+  renderGlobalPresets();
+  if (pairFxEditorRefresh) pairFxEditorRefresh();
+}
+
 
 // ─── Responsive canvas size ───────────────────────────────────────────
 const MAXW    = 880;
@@ -905,14 +1024,14 @@ function updatePlaybackUI() {
   if (allPauseBtn) {
     allPauseBtn.textContent = running ? '||' : '▶';
     allPauseBtn.classList.toggle('is-pausing', running);
-    allPauseBtn.title = running ? '全図形を停止' : '全図形を再生';
+    allPauseBtn.title = running ? t('transport.pauseAll') : t('transport.playAll');
   }
   if (stepBackBtn) stepBackBtn.disabled = !paused || simHistoryIndex <= 0;
   if (stepFwdBtn) stepFwdBtn.disabled = !paused;
   shapes.forEach((s, idx) => {
     const btn = document.getElementById(`pbtn${idx}`);
     if (!btn) return;
-    btn.textContent = s.paused ? '▶ 再開' : '⏸ 停止';
+    btn.textContent = s.paused ? L('shape.resume') : L('shape.pause');
     btn.classList.toggle('on', !s.paused);
   });
   if (!running) {
@@ -1004,25 +1123,20 @@ function formulaSizeHint(formula) {
   if (!s) return '';
   const ci = topComma(s);
   if (ci < 0) {
-    if (/^\d+(\.\d+)?$/.test(s)) {
-      return 'この値は<b>半径 r</b>です（直径ではありません。直径にしたいときは半分の値を入れてください）。';
-    }
+    if (/^\d+(\.\d+)?$/.test(s)) return t('hint.radiusLiteral');
     const polyM = s.match(/^poly\s*\(\s*\d+\s*,\s*([\d.]+)/i);
-    if (polyM) return `poly の第2引数 <b>${polyM[1]}</b> は正多角形の<b>半径</b>（外接円の半径）です。`;
+    if (polyM) return t('hint.polyRadius', { val: polyM[1] });
     const starM = s.match(/^star[XY]\s*\(\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)/i);
-    if (starM) return `starX / starY の第3引数 <b>${starM[1]}</b> は星形の<b>半径</b>（外接円）です。`;
+    if (starM) return t('hint.starRadius', { val: starM[1] });
     const cardM = s.match(/^\(\s*1\s*\+\s*cos\s*\(\s*t\s*\)\s*\)\s*\*\s*([\d.]+)/i);
     if (cardM) {
       const a = parseFloat(cardM[1]);
-      return `係数 <b>${cardM[1]}</b> はスケール（極座標で先端までの最大距離 ≈ <b>${fmtN(2 * a, 0)}</b>）です。`;
+      return t('hint.cardScale', { val: cardM[1], max: fmtN(2 * a, 0) });
     }
     const roseM = s.match(/(?:^|(?:\*\s*))([\d.]+)\s*\*\s*cos\s*\(\s*\d+\s*\*\s*t\s*\)/i)
       || s.match(/cos\s*\(\s*\d+\s*\*\s*t\s*\)\s*\*\s*([\d.]+)/i);
-    if (roseM) {
-      const amp = roseM[1];
-      return `係数 <b>${amp}</b> は極座標での<b>最大半径</b>（花弁の長さ）です。`;
-    }
-    return '極座標 <b>r(t)</b>：数値だけのときは<b>半径</b>、式のときは t の関数です。';
+    if (roseM) return t('hint.roseAmp', { amp: roseM[1] });
+    return t('hint.polarDefault');
   }
   const xy = s.split(',');
   const xs = xy[0] || '', ys = xy[1] || '';
@@ -1031,25 +1145,25 @@ function formulaSizeHint(formula) {
   if (cosM && sinM) {
     const r1 = cosM[1], r2 = sinM[1];
     if (Math.abs(parseFloat(r1) - parseFloat(r2)) < 1e-6) {
-      return `x,y の係数 <b>${r1}</b> は円の<b>半径</b>です。`;
+      return t('hint.xyCircleRadius', { r1 });
     }
   }
   if (/starX\s*\(/i.test(s)) {
     const m = s.match(/starX\s*\(\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)/i);
-    if (m) return `starX / starY の第3引数 <b>${m[1]}</b> は<b>半径</b>です。`;
+    if (m) return t('hint.starRadiusShort', { val: m[1] });
   }
   if (/poly\s*\(/i.test(s)) {
     const m = s.match(/poly\s*\(\s*\d+\s*,\s*([\d.]+)/i);
-    if (m) return `poly の第2引数 <b>${m[1]}</b> は<b>半径</b>です。`;
+    if (m) return t('hint.polyRadiusShort', { val: m[1] });
   }
   const astM = xs.match(/pow\s*\(\s*cos\s*\(\s*t\s*\)\s*,\s*3\s*\)\s*\*\s*([\d.]+)/i);
-  if (astM) return `係数 <b>${astM[1]}</b> はアステロイド頂点までの<b>半径</b>です。`;
+  if (astM) return t('hint.astroidRadius', { val: astM[1] });
   const lisM = xs.match(/cos\s*\(\s*\d+\s*\*\s*t\s*\)\s*\*\s*([\d.]+)/i);
   if (lisM && /sin\s*\(\s*\d+\s*\*\s*t/i.test(ys)) {
-    return `各係数（例 <b>${lisM[1]}</b>）は軸方向の<b>振幅</b>（半幅）です。`;
+    return t('hint.lissajousAmp', { val: lisM[1] });
   }
   if (/^t\s*$/i.test(xs.trim()) && /^0\s*$/i.test(ys.trim())) {
-    return '直線：長さは <b>t 範囲</b> で決まります（半径の概念はありません）。';
+    return t('hint.lineLength');
   }
   return '';
 }
@@ -1335,17 +1449,13 @@ function clampFxStyle(v, max) {
 
 /** ビジュアル id → サウンド id（1:1） */
 const VISUAL_TO_SOUND_STYLE = [0, 1, 4, 3, 6, 5, 8, 9, 2, 7];
-const SOUND_FX_NAMES = [
-  'カリンバ', 'ベル', '木', 'ポップ', 'マリンバ', 'チャイム', 'そよ風', '星', 'ノック', '笛',
-];
-
 function soundStyleForVisual(visualId) {
   const v = clampFxStyle(visualId, 9);
   return VISUAL_TO_SOUND_STYLE[v] ?? 0;
 }
 
 function soundNameForVisual(visualId) {
-  return SOUND_FX_NAMES[soundStyleForVisual(visualId)] || SOUND_FX_NAMES[0];
+  return t(`sound.${soundStyleForVisual(visualId)}`);
 }
 
 function getPairFx(key) {
@@ -1580,14 +1690,14 @@ function parabolaPresetDefaults(shape) {
 }
 
 const PRESET_CATALOG = [
-  { type: 'freehand', id: 'freehand', name: '自由記述', stroke: 'rgba(180,195,255,.9)' },
-  { type: 'simple', name: '直線', formula: 't, 0', tMinS: '-160', tMaxS: '160', N: 2, stroke: 'rgba(220,225,255,.92)' },
-  { type: 'simple', name: '円', formula: '155', tMinS: '0', tMaxS: '2*pi', N: 120, stroke: 'rgba(100,210,255,.92)' },
-  { type: 'simple', name: 'アステロイド', formula: 'pow(cos(t),3)*155, pow(sin(t),3)*155', tMinS: '0', tMaxS: '2*pi', N: 200, stroke: 'rgba(255,185,110,.92)' },
+  { type: 'freehand', id: 'freehand', presetKey: 'freehand', name: '自由記述', stroke: 'rgba(180,195,255,.9)' },
+  { type: 'simple', presetKey: 'line', name: '直線', formula: 't, 0', tMinS: '-160', tMaxS: '160', N: 2, stroke: 'rgba(220,225,255,.92)' },
+  { type: 'simple', presetKey: 'circle', name: '円', formula: '155', tMinS: '0', tMaxS: '2*pi', N: 120, stroke: 'rgba(100,210,255,.92)' },
+  { type: 'simple', presetKey: 'astroid', name: 'アステロイド', formula: 'pow(cos(t),3)*155, pow(sin(t),3)*155', tMinS: '0', tMaxS: '2*pi', N: 200, stroke: 'rgba(255,185,110,.92)' },
   {
-    type: 'config', id: 'star', name: '星', stroke: 'rgba(255,220,110,.95)',
+    type: 'config', id: 'star', presetKey: 'star', name: '星', stroke: 'rgba(255,220,110,.95)',
     fields: [
-      { id: 'n', label: '角', kind: 'number', def: 5, min: 5, max: 16 },
+      { id: 'n', labelKey: 'preset.field.corners', kind: 'number', def: 5, min: 5, max: 16 },
       { id: 'r', label: 'R', kind: 'number', def: 155 },
     ],
     resolve(v) {
@@ -1601,9 +1711,9 @@ const PRESET_CATALOG = [
     },
   },
   {
-    type: 'config', id: 'poly', name: '多角形', stroke: 'rgba(130,255,175,.92)',
+    type: 'config', id: 'poly', presetKey: 'poly', name: '多角形', stroke: 'rgba(130,255,175,.92)',
     fields: [
-      { id: 'n', label: '辺', kind: 'number', def: 5, min: 3, max: 24 },
+      { id: 'n', labelKey: 'preset.field.sides', kind: 'number', def: 5, min: 3, max: 24 },
       { id: 'r', label: 'R', kind: 'number', def: 155 },
     ],
     resolve(v) {
@@ -1613,10 +1723,10 @@ const PRESET_CATALOG = [
     },
   },
   {
-    type: 'config', id: 'parabola', name: '放物線', stroke: 'rgba(255,140,220,.92)', mode: 'parabola',
+    type: 'config', id: 'parabola', presetKey: 'parabola', name: '放物線', stroke: 'rgba(255,140,220,.92)', mode: 'parabola',
     fields: [
-      { id: 'w', label: '幅', kind: 'number', def: 12, min: 2, max: 80 },
-      { id: 'h', label: '高さ', kind: 'number', def: 5, min: -80, max: 80 },
+      { id: 'w', labelKey: 'preset.field.width', kind: 'number', def: 12, min: 2, max: 80 },
+      { id: 'h', labelKey: 'preset.field.height', kind: 'number', def: 5, min: -80, max: 80 },
     ],
     resolve(v) {
       const w = Math.max(2, parseFloat(v.w) || 12);
@@ -1625,7 +1735,7 @@ const PRESET_CATALOG = [
     },
   },
   {
-    type: 'config', id: 'rose', name: 'ローズ', stroke: 'rgba(255,120,180,.92)',
+    type: 'config', id: 'rose', presetKey: 'rose', name: 'ローズ', stroke: 'rgba(255,120,180,.92)',
     fields: [
       { id: 'mode', kind: 'select', def: 'cos', options: [['cos', 'cos'], ['sin', 'sin']] },
       { id: 'k', label: 'k', kind: 'number', def: 3, min: 1, max: 24 },
@@ -1721,7 +1831,7 @@ function buildFreehandPresetThumb() {
   c.font = 'bold 11px Menlo,monospace';
   c.textAlign = 'center';
   c.textBaseline = 'middle';
-  c.fillText('式', 19, 20);
+  c.fillText(L('shape.formulaLbl'), 19, 20);
   return cv;
 }
 
@@ -1849,16 +1959,16 @@ function randomSimplePresetCurve(spec, tight) {
   const r = tight
     ? rndInt(Math.floor(maxRandomCurveRadius() * 0.45), maxRandomCurveRadius())
     : rndInt(90, 175);
-  if (spec.name === '円') {
+  if (spec.presetKey === 'circle') {
     return { formula: String(r), tMinS: spec.tMinS, tMaxS: spec.tMaxS, N: rndInt(90, 150) };
   }
-  if (spec.name === '直線') {
+  if (spec.presetKey === 'line') {
     const half = tight
       ? rndInt(35, Math.max(50, maxRandomCurveRadius()))
       : rndInt(100, 200);
     return { formula: spec.formula, tMinS: String(-half), tMaxS: String(half), N: 2 };
   }
-  if (spec.name === 'アステロイド') {
+  if (spec.presetKey === 'astroid') {
     return {
       formula: `pow(cos(t),3)*${r}, pow(sin(t),3)*${r}`,
       tMinS: spec.tMinS,
@@ -2052,7 +2162,7 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
 
   const title = document.createElement('div');
   title.className = 'preset-params-title';
-  title.textContent = `${spec.name} の設定`;
+  title.textContent = L('shape.presetSettings', { name: presetLabel(spec) });
   panel.appendChild(title);
 
   const fieldVals = defaultPresetFieldValues(spec, shape);
@@ -2061,9 +2171,9 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
   spec.fields.forEach(f => {
     const row = document.createElement('div');
     row.className = 'preset-params-row';
-    if (f.label) {
+    if (f.labelKey || f.label) {
       const lab = document.createElement('label');
-      lab.textContent = f.label;
+      lab.textContent = f.labelKey ? L(f.labelKey) : f.label;
       row.appendChild(lab);
     }
     let el;
@@ -2096,7 +2206,7 @@ function buildPresetParamsPanel(shapeIdx, spec, shape, applyFormula) {
   const applyBtn = document.createElement('button');
   applyBtn.type = 'button';
   applyBtn.className = 'apply-ps';
-  applyBtn.textContent = '適用';
+  applyBtn.textContent = L('shape.apply');
   applyBtn.addEventListener('click', runApply);
   panel.appendChild(applyBtn);
 }
@@ -2120,7 +2230,7 @@ function buildPresetStripForShape(strip, shapeIdx, shape, applyFormula, onFreeha
     item.appendChild(thumbCv);
 
     const lbl = document.createElement('span');
-    lbl.textContent = spec.name;
+    lbl.textContent = presetLabel(spec);
     item.appendChild(lbl);
 
     if (spec.type === 'freehand') {
@@ -2243,18 +2353,6 @@ function syncPairFxDefaultsFromGlobals() {
 
 syncPairFxDefaultsFromGlobals();
 
-const VISUAL_FX_STYLES = [
-  { id: 0, name: '波紋', desc: '広がるリングと中心の光' },
-  { id: 1, name: '十字', desc: '回転する十字のフラッシュ' },
-  { id: 2, name: '連波', desc: '重なる複数の波紋' },
-  { id: 3, name: '火花', desc: '放射状に飛ぶ火花' },
-  { id: 4, name: '彗星', desc: '横に流れる光の筋' },
-  { id: 5, name: '脈動', desc: '中心から広がる光の塊' },
-  { id: 6, name: '菱形', desc: 'くり抜いた菱形の閃光' },
-  { id: 7, name: '渦', desc: '渦を描くアーク' },
-  { id: 8, name: '衝撃', desc: '二重の衝撃波' },
-  { id: 9, name: '稲妻', desc: 'ジグザグの稲妻' },
-];
 let fxStyleThumbsReady = false;
 
 const hitFxBursts = [];
@@ -2867,7 +2965,7 @@ function buildSoundFxThumb(styleId, size) {
 function ensureFxStyleThumbs() {
   if (fxStyleThumbsReady) return;
   const sz = 34;
-  VISUAL_FX_STYLES.forEach(s => { s.thumb = buildVisualFxThumb(s.id, sz); });
+  getVisualFxStyles().forEach(s => { s.thumb = buildVisualFxThumb(s.id, sz); });
   fxStyleThumbsReady = true;
 }
 
@@ -3126,10 +3224,10 @@ function setBatchProgress(done, total, msg) {
   if (batchStartTime) {
     const sec = (Date.now() - batchStartTime) / 1000;
     elapsed = sec >= 60
-      ? ` · 経過 ${Math.floor(sec / 60)}分${Math.floor(sec % 60)}秒`
-      : ` · 経過 ${sec.toFixed(0)}秒`;
+      ? t('batch.progress.elapsedMin', { m: Math.floor(sec / 60), s: Math.floor(sec % 60) })
+      : t('batch.progress.elapsedSec', { s: sec.toFixed(0) });
   }
-  const core = msg || `処理中 ${done} / ${total}（${pct}%）${elapsed}`;
+  const core = msg || t('batch.progress.core', { done, total, pct, elapsed });
   if (el) el.textContent = core;
   if (bar) {
     bar.max = total || 1;
@@ -3144,25 +3242,29 @@ async function runOmegaBatchExport() {
   const step = parseFloat(document.getElementById('batchOmegaStep')?.value);
   const durationSec = parseFloat(document.getElementById('batchDuration')?.value);
   if (![min, max, step, durationSec].every(Number.isFinite) || step <= 0 || max < min || durationSec <= 0) {
-    alert('ω範囲・刻み・秒数を正しく入力してください');
+    alert(t('batch.alertInput'));
     return;
   }
   if (shapes.some(s => s.error || !s.pts)) {
-    alert('式エラーの図形があるためバッチできません');
+    alert(t('batch.alertFormula'));
     return;
   }
   const omegaList = buildOmegaList(min, max, step);
   const assignments = cartesianOmegaAssignments(omegaList);
   const total = assignments.length;
   if (total > 20000) {
-    alert(`組み合わせが ${total} 通りあり多すぎます（上限 20000）`);
+    alert(t('batch.alertTooMany', { total }));
     return;
   }
-  const est = `図形 ${shapes.length} 個 × ω ${omegaList.length} 通り = ${total} パターン\n` +
-    `各 ${durationSec} 秒シミュレート（軌跡のみ PNG + 同名 JSON）\nZIP で一括ダウンロードします。`;
+  const est = t('batch.est', {
+    shapes: shapes.length,
+    omegaCount: omegaList.length,
+    total,
+    duration: durationSec,
+  });
   if (total > 2500) {
-    if (!confirm(est + '\n\n数時間かかる場合があります。続行しますか？')) return;
-  } else if (!confirm(est + '\n\n続行しますか？')) return;
+    if (!confirm(t('batch.confirmLong', { est }))) return;
+  } else if (!confirm(t('batch.confirm', { est }))) return;
 
   batchActive = true;
   batchCancel = false;
@@ -3171,11 +3273,11 @@ async function runOmegaBatchExport() {
   const zipEntries = {};
   const btn = document.getElementById('batchExportBtn');
   const cancelBtn = document.getElementById('batchCancelBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '実行中…'; }
+  if (btn) { btn.disabled = true; btn.textContent = L('batch.running'); }
   if (cancelBtn) cancelBtn.disabled = false;
 
   batchStartTime = Date.now();
-  setBatchProgress(0, total, `開始しました（全 ${total} パターン）`);
+  setBatchProgress(0, total, t('batch.progress.started', { total }));
   await new Promise(r => setTimeout(r, 0));
 
   try {
@@ -3194,24 +3296,27 @@ async function runOmegaBatchExport() {
         omegaRange: { min, max, step },
       };
       zipEntries[base + '.json'] = fflate.strToU8(JSON.stringify(snap, null, 2));
-      setBatchProgress(i + 1, total,
-        `シミュレート中 ${i + 1} / ${total} · ω: ${speeds.map(w => w.toFixed(1)).join(', ')}`);
+      setBatchProgress(i + 1, total, t('batch.progress.simulating', {
+        i: i + 1,
+        total,
+        omegas: speeds.map(w => w.toFixed(1)).join(', '),
+      }));
       await new Promise(r => setTimeout(r, 0));
     }
     if (batchCancel) {
-      setBatchProgress(0, 1, 'キャンセルしました');
+      setBatchProgress(0, 1, t('batch.progress.cancelled'));
       return;
     }
-    setBatchProgress(total, total, 'ZIP を作成中…');
+    setBatchProgress(total, total, t('batch.progress.zipping'));
     await new Promise(r => setTimeout(r, 0));
     const zipBytes = fflate.zipSync(zipEntries);
     downloadBlob(new Blob([zipBytes], { type: 'application/zip' }),
       'locus-omega-batch-' + Date.now() + '.zip');
-    setBatchProgress(total, total, `完了: ${total} パターン`);
+    setBatchProgress(total, total, t('batch.progress.done', { total }));
   } catch (err) {
     console.error(err);
-    alert('バッチ書き出し失敗: ' + (err && err.message ? err.message : String(err)));
-    setBatchProgress(0, 1, 'エラー');
+    alert(t('batch.fail', { msg: err && err.message ? err.message : String(err) }));
+    setBatchProgress(0, 1, t('batch.progress.error'));
   } finally {
     shapes.forEach((s, si) => { s.speed = savedSpeeds[si]; });
     batchNoFade = false;
@@ -3219,7 +3324,7 @@ async function runOmegaBatchExport() {
     batchCancel = false;
     clearTrails();
     shapes.forEach(s => { s.angle = 0; });
-    if (btn) { btn.disabled = false; btn.textContent = 'バッチ ZIP 書き出し'; }
+    if (btn) { btn.disabled = false; btn.textContent = L('batch.export'); }
     if (cancelBtn) cancelBtn.disabled = true;
     batchStartTime = 0;
   }
@@ -3717,7 +3822,7 @@ function applySettingsSnapshot(data) {
 function saveState(name) {
   const thumb = canvas.toDataURL('image/jpeg', 0.82);
   const snap  = shapeSnapshot();
-  const saveName = name || ('保存 ' + (SAVES.length + 1));
+  const saveName = name || t('save.defaultName', { n: SAVES.length + 1 });
   SAVES.push({ name: saveName, thumb, snap, isInitial: false });
   const slotM = /^no\.([1-4])$/i.exec(saveName.trim());
   if (slotM) {
@@ -3747,7 +3852,7 @@ function renderSavesStrip() {
   area.innerHTML = '';
   if(!SAVES.length) return;
   const lbl = document.createElement('div'); lbl.className='saves-hdr';
-  lbl.textContent = '保存済み（クリックで復元 / ★ = 起動時に読込）';
+  lbl.textContent = t('save.savedLabel');
   area.appendChild(lbl);
   const strip = document.createElement('div'); strip.className='saves-strip';
   SAVES.forEach((sv,idx)=>{
@@ -3756,11 +3861,11 @@ function renderSavesStrip() {
     const nameEl = document.createElement('div'); nameEl.className='save-name';
     nameEl.textContent = sv.name;
     const restoreHint = document.createElement('div'); restoreHint.className='save-restore';
-    restoreHint.textContent = '復元';
+    restoreHint.textContent = L('save.restore');
 
     // ★ 起動時読込ボタン
     const homeBtn = document.createElement('button'); homeBtn.className='save-home'+(sv.isInitial?' active':'');
-    homeBtn.textContent='★'; homeBtn.title='起動時にこの状態を読込';
+    homeBtn.textContent='★'; homeBtn.title=t('save.homeTitle');
     homeBtn.addEventListener('click', e=>{
       e.stopPropagation();
       const wasInitial = sv.isInitial;
@@ -3826,7 +3931,7 @@ function makeFxStyleThumbBtn(style, active, onSelect) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'fx-style-btn' + (active ? ' active-choice' : '');
-  btn.title = `${style.name} — ${style.desc}（音: ${soundNameForVisual(style.id)}）`;
+  btn.title = t('pairs.fxTooltip', { name: style.name, desc: style.desc, sound: soundNameForVisual(style.id) });
   const thumb = document.createElement('canvas');
   thumb.className = 'fx-style-thumb';
   thumb.width = thumb.height = 34;
@@ -3845,8 +3950,8 @@ function makeFxControlBlock(label, enabled, styleId, styles, onEnabled, onStyle)
   block.className = 'transport-fx-block' + (enabled ? '' : ' fx-disabled');
   const onBtn = makeTransportOptBtn('ON', enabled);
   const offBtn = makeTransportOptBtn('OFF', !enabled);
-  onBtn.title = `${label}エフェクトを有効`;
-  offBtn.title = `${label}エフェクトを無効`;
+  onBtn.title = t('pairs.fxEnable', { label });
+  offBtn.title = t('pairs.fxDisable', { label });
   const patternRow = document.createElement('div');
   patternRow.className = 'transport-fx-patterns';
   const styleBtns = styles.map(s => makeFxStyleThumbBtn(s, s.id === styleId, onStyle));
@@ -3948,15 +4053,15 @@ function buildUI() {
     tabDot.style.background = `hsl(${shape.hue},80%,60%)`;
     const tabLabel = document.createElement('span');
     tabLabel.className = 'tab-label';
-    tabLabel.textContent = `図形 ${i + 1}${dupLbl}`;
+    tabLabel.textContent = L('shape.tab', { n: i + 1 }) + dupLbl;
     tab.append(tabDot, tabLabel);
     if (shapes.length > 1) {
       const tabClose = document.createElement('button');
       tabClose.type = 'button';
       tabClose.className = 'tab-close';
       tabClose.textContent = '×';
-      tabClose.title = 'このタブを削除';
-      tabClose.setAttribute('aria-label', `図形 ${i + 1} を削除`);
+      tabClose.title = t('shape.deleteTab');
+      tabClose.setAttribute('aria-label', t('shape.deleteTabAria', { n: i + 1 }));
       tabClose.addEventListener('click', e => {
         e.stopPropagation();
         deleteShape(i);
@@ -3986,78 +4091,68 @@ function buildUI() {
       <div class="card-head">
         <div class="head-info">
           <span class="swatch" style="background:hsl(${shape.hue},80%,60%)"></span>
-          <span class="card-name">図形 ${i+1}${dupCountOf(shape)>1?' ×'+dupCountOf(shape):''}</span>
+          <span class="card-name">${L('shape.cardName', { n: i + 1 })}${dupCountOf(shape)>1?' ×'+dupCountOf(shape):''}</span>
           <span class="ftype-tag" id="ftag${i}">${isParabolaShape(shape)?'parabola':(shape.isPolar?'polar':'param')}</span>
-          <button class="vis-btn ${shape.paused?'':'on'}" id="pbtn${i}">${shape.paused?'▶ 再開':'⏸ 停止'}</button>
-          <button class="vis-btn ${shape.visible?'on':''}" id="vbtn${i}">${shape.visible?'表示中':'非表示'}</button>
+          <button class="vis-btn ${shape.paused?'':'on'}" id="pbtn${i}">${shape.paused?L('shape.resume'):L('shape.pause')}</button>
+          <button class="vis-btn ${shape.visible?'on':''}" id="vbtn${i}">${shape.visible?L('shape.visible'):L('shape.hidden')}</button>
         </div>
       </div>
-      <div class="preset-lbl">プリセット（クリックで適用）</div>
+      <div class="preset-lbl">${L('shape.preset')}</div>
       <div class="preset-strip" id="ps${i}"></div>
       <div class="preset-params" id="psParams${i}"></div>
       <button type="button" class="details-tab" id="detailsTab${i}" aria-expanded="false">
-        <span class="details-tab-chev">▶</span><span>詳細</span>
+        <span class="details-tab-chev">▶</span><span>${L('shape.details')}</span>
       </button>
       <div class="card-details">
       <div class="cf">
-        <span class="cf-lbl">式</span>
+        <span class="cf-lbl">${L('shape.formulaLbl')}</span>
         <input type="text" style="flex:1" id="f${i}" value="${esc(shape.formula)}">
       </div>
       <div class="desc formula-hint" id="fhint${i}"></div>
-      <div class="desc">
-        カンマ<b>なし</b> → 極座標 <b>r(t)</b>（数値だけなら<b>半径</b>）&nbsp;／&nbsp;
-        カンマ<b>あり</b> → <b>x(t), y(t)</b> &nbsp;&nbsp;
-        数式の原点 = 図形の中心 (fx, fy)
-      </div>
+      <div class="desc">${t('shape.formulaHelp')}</div>
       <div class="err-msg" id="err${i}"></div>
 
       <div class="cf">
-        <span class="cf-lbl">t 範囲</span>
+        <span class="cf-lbl">${L('shape.tRangeLbl')}</span>
         <input type="text"   class="w60" id="tmin${i}" value="${esc(shape.tMinS)}">
-        <span class="sep">〜</span>
+        <span class="sep">${L('batch.to')}</span>
         <input type="text"   class="w60" id="tmax${i}" value="${esc(shape.tMaxS)}">
         <span class="cf-lbl" style="width:auto;padding-left:10px">N</span>
         <input type="number" class="w60" id="n${i}" value="${shape.N}" min="5" max="2000" step="10">
       </div>
-      <div class="desc">
-        <b>t</b>: パラメータ範囲 &nbsp;（<b>pi</b>・<b>2*pi</b> 使用可）&nbsp;&nbsp;
-        <b>N</b>: 分割数（多いほど滑らか）
-      </div>
+      <div class="desc">${t('shape.tHelp')}</div>
 
       <div class="cf">
-        <span class="cf-lbl">図形の中心 ●</span>
+        <span class="cf-lbl">${L('shape.centerLbl')}</span>
         <span class="sep">fx</span>
         <input type="number" class="w70" id="fx${i}" value="${shape.fx}" step="1">
         <span class="sep" style="margin-left:8px">fy</span>
         <input type="number" class="w70" id="fy${i}" value="${shape.fy}" step="1">
       </div>
-      <div class="desc">数式座標の原点（複製時は配置の基準）　キャンバス上でドラッグ可</div>
+      <div class="desc">${t('shape.centerHelp')}</div>
 
       <div class="cf">
-        <span class="cf-lbl">回転の軸 ⊕</span>
+        <span class="cf-lbl">${L('shape.pivotLbl')}</span>
         <span class="sep">px</span>
         <input type="number" class="w70" id="px${i}" value="${shape.px}" step="1">
         <span class="sep" style="margin-left:8px">py</span>
         <input type="number" class="w70" id="py${i}" value="${shape.py}" step="1">
       </div>
-      <div class="desc">
-        この点を中心に回転　ドラッグ可 &nbsp;&nbsp;
-        (0,0) = 中心　+x = 右　+y = 上
-      </div>
+      <div class="desc">${t('shape.pivotHelp')}</div>
 
       <div class="cf">
-        <span class="cf-lbl">回転速度 ω</span>
+        <span class="cf-lbl">${L('shape.omegaLbl')}</span>
         <input type="number" class="w80" id="spd${i}" value="${shape.speed}" step="0.01">
         <span class="sep" style="margin-left:4px">rad/s</span>
       </div>
-      <div class="desc"><b>正</b> = 反時計回り &nbsp; <b>負</b> = 時計回り &nbsp; 0 = 停止</div>
+      <div class="desc">${t('shape.omegaHelp')}</div>
 
       <div class="cf">
-        <span class="cf-lbl">複製</span>
+        <span class="cf-lbl">${L('shape.dupLbl')}</span>
         <input type="number" class="w60" id="dup${i}" value="${shape.dupCount || 1}" min="1" max="18" step="1">
-        <button type="button" class="vis-btn" id="dupbtn${i}">複製</button>
+        <button type="button" class="vis-btn" id="dupbtn${i}">${L('shape.duplicate')}</button>
       </div>
-      <div class="desc">図形の中心の位置</div>
+      <div class="desc">${t('shape.dupHelp')}</div>
       </div>
     `;
 
@@ -4128,7 +4223,7 @@ function buildUI() {
     card.querySelector(`#vbtn${i}`).addEventListener('click',()=>{
       shape.visible=!shape.visible;
       const btn=document.getElementById(`vbtn${i}`);
-      btn.textContent=shape.visible?'表示中':'非表示';
+      btn.textContent=shape.visible?L('shape.visible'):L('shape.hidden');
       btn.classList.toggle('on',shape.visible);
       tabRow.querySelectorAll('.tab:not(.tab-add)')[i].classList.toggle('dim-tab',!shape.visible);
     });
@@ -4146,7 +4241,7 @@ function buildUI() {
       const tabLabel = tab && tab.querySelector('.tab-label');
       if (tabLabel) {
         const dupLbl = n > 1 ? ` ×${n}` : '';
-        tabLabel.textContent = `図形 ${i + 1}${dupLbl}`;
+        tabLabel.textContent = L('shape.tab', { n: i + 1 }) + dupLbl;
       }
     };
     card.querySelector(`#dupbtn${i}`).addEventListener('click', runDup);
@@ -4177,7 +4272,7 @@ function buildUI() {
 
   // ── "+" tab ──────────────────────────────────────────────────────
   const addTab = document.createElement('button'); addTab.className='tab-add';
-  addTab.textContent='+'; addTab.title='図形を追加';
+  addTab.textContent='+'; addTab.title=t('shape.addTab');
   addTab.addEventListener('click', addShape);
   tabRow.appendChild(addTab);
 
@@ -4193,20 +4288,20 @@ function buildUI() {
   stepBackBtn.id = 'stepBackBtn';
   stepBackBtn.className = 'reset-btn transport-btn';
   stepBackBtn.textContent = '◀◀';
-  stepBackBtn.title = 'コマ戻し（全停止中）';
+  stepBackBtn.title = t('transport.stepBackTitle');
   const allPauseBtn = document.createElement('button');
   allPauseBtn.type = 'button';
   allPauseBtn.id = 'allPauseBtn';
   const _anyRunning = shapes.some(s => !s.paused);
   allPauseBtn.className = 'reset-btn transport-btn transport-btn-main' + (_anyRunning ? ' is-pausing' : '');
   allPauseBtn.textContent = _anyRunning ? '||' : '▶';
-  allPauseBtn.title = _anyRunning ? '全図形を停止' : '全図形を再生';
+  allPauseBtn.title = _anyRunning ? t('transport.pauseAll') : t('transport.playAll');
   const stepFwdBtn = document.createElement('button');
   stepFwdBtn.type = 'button';
   stepFwdBtn.id = 'stepFwdBtn';
   stepFwdBtn.className = 'reset-btn transport-btn';
   stepFwdBtn.textContent = '▶▶';
-  stepFwdBtn.title = 'コマ送り（全停止中）';
+  stepFwdBtn.title = t('transport.stepFwdTitle');
   transportRow.append(stepBackBtn, allPauseBtn, stepFwdBtn);
   const randomRow = document.createElement('div');
   randomRow.className = 'transport-random-row';
@@ -4214,19 +4309,19 @@ function buildUI() {
   randomPlayBtn.type = 'button';
   randomPlayBtn.id = 'randomPlayBtn';
   randomPlayBtn.className = 'reset-btn transport-random-btn';
-  randomPlayBtn.textContent = 'ランダム';
-  randomPlayBtn.title = '図形と配置をランダムにして再生（表示エリア内に収める）';
+  randomPlayBtn.textContent = L('transport.random');
+  randomPlayBtn.title = t('transport.randomTitle');
   randomRow.appendChild(randomPlayBtn);
   const utilsWrap = document.createElement('div');
   utilsWrap.className = 'transport-utils-rows';
-  const axisShowBtn = makeTransportOptBtn('表示', showAxes);
-  const axisHideBtn = makeTransportOptBtn('非表示', !showAxes);
-  axisShowBtn.title = '座標軸を表示';
-  axisHideBtn.title = '座標軸を非表示';
-  const gridShowBtn = makeTransportOptBtn('表示', showGrid);
-  const gridHideBtn = makeTransportOptBtn('非表示', !showGrid);
-  gridShowBtn.title = 'グリッドを表示';
-  gridHideBtn.title = 'グリッドを非表示';
+  const axisShowBtn = makeTransportOptBtn(t('ui.on'), showAxes);
+  const axisHideBtn = makeTransportOptBtn(t('ui.off'), !showAxes);
+  axisShowBtn.title = t('transport.axesShow');
+  axisHideBtn.title = t('transport.axesHide');
+  const gridShowBtn = makeTransportOptBtn(t('ui.on'), showGrid);
+  const gridHideBtn = makeTransportOptBtn(t('ui.off'), !showGrid);
+  gridShowBtn.title = t('transport.gridShow');
+  gridHideBtn.title = t('transport.gridHide');
   const onTransportClick = () => unlockHitAudio();
   randomPlayBtn.addEventListener('click', () => {
     onTransportClick();
@@ -4235,18 +4330,18 @@ function buildUI() {
   const timingResetBtn = document.createElement('button');
   timingResetBtn.type = 'button';
   timingResetBtn.className = 'reset-btn transport-opt-btn';
-  timingResetBtn.textContent = 'リセット';
-  timingResetBtn.title = '全図形の回転角度を0に揃える（軌跡は残す）';
+  timingResetBtn.textContent = L('transport.reset');
+  timingResetBtn.title = t('transport.timingResetTitle');
   const viewResetBtn = document.createElement('button');
   viewResetBtn.type = 'button';
   viewResetBtn.className = 'reset-btn transport-opt-btn';
-  viewResetBtn.textContent = 'リセット';
-  viewResetBtn.title = '拡大・移動を初期状態に戻す';
+  viewResetBtn.textContent = L('transport.reset');
+  viewResetBtn.title = t('transport.viewResetTitle');
   utilsWrap.append(
-    makeTransportUtilsLine('軸', [axisShowBtn, axisHideBtn]),
-    makeTransportUtilsLine('グリッド', [gridShowBtn, gridHideBtn]),
-    makeTransportUtilsLine('タイミング', [timingResetBtn]),
-    makeTransportUtilsLine('ビュー', [viewResetBtn]),
+    makeTransportUtilsLine(L('transport.axes'), [axisShowBtn, axisHideBtn]),
+    makeTransportUtilsLine(L('transport.grid'), [gridShowBtn, gridHideBtn]),
+    makeTransportUtilsLine(L('transport.timing'), [timingResetBtn]),
+    makeTransportUtilsLine(L('transport.view'), [viewResetBtn]),
   );
   transportBlock.append(transportRow, randomRow, utilsWrap);
   panel.appendChild(transportBlock);
@@ -4259,7 +4354,7 @@ function buildUI() {
   slidersHdr.className = 'collapsible-hdr panel-inline-hdr';
   slidersHdr.id = 'slidersCollapsibleHdr';
   slidersHdr.setAttribute('aria-expanded', 'false');
-  slidersHdr.innerHTML = '<span class="chev">▶</span><span>軌跡・速度</span>';
+  slidersHdr.innerHTML = `<span class="chev">▶</span><span>${L('collapsible.sliders')}</span>`;
   slidersSec.appendChild(slidersHdr);
   const slidersBody = document.createElement('div');
   slidersBody.className = 'collapsible-body is-collapsed';
@@ -4269,7 +4364,7 @@ function buildUI() {
   speedRow.className = 'ctrl-row';
   const speedLbl = document.createElement('label');
   speedLbl.htmlFor = 'speedMul';
-  speedLbl.textContent = '再生速度';
+  speedLbl.textContent = L('sliders.speed');
   const speedRange = document.createElement('input');
   speedRange.type = 'range';
   speedRange.id = 'speedMul';
@@ -4291,7 +4386,7 @@ function buildUI() {
   trailRow.className = 'ctrl-row';
   const widthLbl = document.createElement('label');
   widthLbl.htmlFor = 'trailWidth';
-  widthLbl.textContent = '軌跡の太さ';
+  widthLbl.textContent = L('sliders.trailWidth');
   const widthRange = document.createElement('input');
   widthRange.type = 'range';
   widthRange.id = 'trailWidth';
@@ -4314,7 +4409,7 @@ function buildUI() {
   durRow.className = 'ctrl-row';
   const durLbl = document.createElement('label');
   durLbl.htmlFor = 'trailDuration';
-  durLbl.textContent = '表示時間';
+  durLbl.textContent = L('sliders.duration');
   const durRange = document.createElement('input');
   durRange.type = 'range';
   durRange.id = 'trailDuration';
@@ -4323,10 +4418,10 @@ function buildUI() {
   durRange.value = String(Math.round(trailDurationSec * 10));
   const durVal = document.createElement('span');
   durVal.style.color = '#fff';
-  durVal.textContent = trailDurationSec.toFixed(1) + '秒';
+  durVal.textContent = trailDurationSec.toFixed(1) + L('sliders.sec');
   durRange.addEventListener('input', () => {
     trailDurationSec = parseInt(durRange.value, 10) / 10;
-    durVal.textContent = trailDurationSec.toFixed(1) + '秒';
+    durVal.textContent = trailDurationSec.toFixed(1) + L('sliders.sec');
     persistTrailSettings();
     resetTimingAndTrails();
   });
@@ -4380,7 +4475,7 @@ function buildUI() {
   pairsSec.className = 'panel-section';
   const pairsTitle = document.createElement('div');
   pairsTitle.className = 'panel-section-title';
-  pairsTitle.textContent = '交点ペア';
+  pairsTitle.textContent = L('pairs.title');
   pairsSec.appendChild(pairsTitle);
   const bot = document.createElement('div');
   bot.className = 'bottom';
@@ -4389,7 +4484,7 @@ function buildUI() {
   legend.className = 'pair-legend';
   const pairLbl = document.createElement('span');
   pairLbl.className = 'hint';
-  pairLbl.textContent = 'チェックで軌跡 · 行クリックでエフェクト編集';
+  pairLbl.textContent = t('pairs.hint');
   legend.appendChild(pairLbl);
   if (!selectedPairFxKey && PAIRS.length) {
     selectedPairFxKey = pairKey(PAIRS[0].i, PAIRS[0].j);
@@ -4424,23 +4519,23 @@ function buildUI() {
   const applyAllBtn = document.createElement('button');
   applyAllBtn.type = 'button';
   applyAllBtn.className = 'reset-btn pair-fx-apply-all';
-  applyAllBtn.textContent = 'この設定を全ペアに適用';
+  applyAllBtn.textContent = L('pairs.applyAll');
   let effectFxCtrl;
   function refreshPairFxEditor() {
     if (!selectedPairFxKey) {
-      pairFxTitle.textContent = 'ペアを選択してください';
+      pairFxTitle.textContent = L('pairs.selectPair');
       return;
     }
     const [i, j] = selectedPairFxKey.split('-').map(Number);
     const fx = getPairFx(selectedPairFxKey);
-    pairFxTitle.textContent = `ペア ${i + 1}∩${j + 1} のエフェクト`;
+    pairFxTitle.textContent = L('pairs.pairFx', { a: i + 1, b: j + 1 });
     if (effectFxCtrl) effectFxCtrl.sync(fx.visualEnabled, fx.visualStyle);
   }
   effectFxCtrl = makeFxControlBlock(
-    'エフェクト',
+    L('pairs.effect'),
     true,
     0,
-    VISUAL_FX_STYLES,
+    getVisualFxStyles(),
     en => {
       onTransportClick();
       setPairFx(selectedPairFxKey, { visualEnabled: en, soundEnabled: en });
@@ -4481,13 +4576,13 @@ function buildUI() {
     snapSec.className = 'save-subsection';
     const snapLbl = document.createElement('div');
     snapLbl.className = 'save-subsection-lbl';
-    snapLbl.textContent = 'スナップショット';
+    snapLbl.textContent = L('save.snapshot');
     const saveBar = document.createElement('div');
     saveBar.className = 'save-bar';
     saveBar.innerHTML = `
-      <span class="save-bar-lbl">保存名</span>
-      <input type="text" id="saveNameInp" placeholder="（省略可）">
-      <button class="save-bar-btn" id="saveBtn">📷 保存</button>
+      <span class="save-bar-lbl">${L('save.name')}</span>
+      <input type="text" id="saveNameInp" placeholder="${L('save.placeholder')}">
+      <button class="save-bar-btn" id="saveBtn">${L('save.btn')}</button>
     `;
     snapSec.append(snapLbl, saveBar);
     saveBarHost.appendChild(snapSec);
@@ -4504,25 +4599,25 @@ function buildUI() {
     exportSec.className = 'save-subsection';
     const exportLbl = document.createElement('div');
     exportLbl.className = 'save-subsection-lbl';
-    exportLbl.textContent = '書き出し';
+    exportLbl.textContent = L('save.export');
     const exportActions = document.createElement('div');
     exportActions.className = 'save-export-actions';
     const pngBtn = document.createElement('button');
     pngBtn.className = 'reset-btn';
-    pngBtn.textContent = 'PNG出力';
-    pngBtn.title = '現在のキャンバスを PNG 画像で保存';
+    pngBtn.textContent = L('save.png');
+    pngBtn.title = t('save.pngTitle');
     pngBtn.addEventListener('click', exportPng);
     const recStartBtn = document.createElement('button');
     recStartBtn.id = 'recStartBtn';
     recStartBtn.className = 'reset-btn rec-start';
-    recStartBtn.textContent = '● MP4録画';
+    recStartBtn.textContent = L('save.recStart');
     recStartBtn.addEventListener('click', () => {
       startRecording().catch(e => alert(e && e.message ? e.message : String(e)));
     });
     const recStopBtn = document.createElement('button');
     recStopBtn.id = 'recStopBtn';
     recStopBtn.className = 'reset-btn rec-stop';
-    recStopBtn.textContent = '■ 停止';
+    recStopBtn.textContent = L('save.recStop');
     recStopBtn.disabled = true;
     recStopBtn.addEventListener('click', stopRecording);
     exportActions.append(pngBtn, recStartBtn, recStopBtn);
@@ -4532,19 +4627,19 @@ function buildUI() {
     settingsSec.className = 'save-subsection';
     const settingsLbl = document.createElement('div');
     settingsLbl.className = 'save-subsection-lbl';
-    settingsLbl.textContent = '設定ファイル';
+    settingsLbl.textContent = L('save.settings');
     const settingsActions = document.createElement('div');
     settingsActions.className = 'save-export-actions save-export-actions--pair';
     const jsonOutBtn = document.createElement('button');
     jsonOutBtn.className = 'reset-btn';
-    jsonOutBtn.textContent = '設定の保存';
-    jsonOutBtn.title = '図形・表示・軌跡・ペアなどの設定をファイルに保存';
+    jsonOutBtn.textContent = L('save.jsonOut');
+    jsonOutBtn.title = t('save.jsonOutTitle');
     jsonOutBtn.addEventListener('click', exportJson);
     const jsonInLbl = document.createElement('label');
     jsonInLbl.className = 'reset-btn';
     jsonInLbl.style.cursor = 'pointer';
-    jsonInLbl.textContent = '設定の読み込み';
-    jsonInLbl.title = '保存した設定ファイルを読み込む';
+    jsonInLbl.textContent = L('save.jsonIn');
+    jsonInLbl.title = t('save.jsonInTitle');
     const jsonInp = document.createElement('input');
     jsonInp.type = 'file';
     jsonInp.accept = 'application/json,.json';
@@ -4563,25 +4658,25 @@ function buildUI() {
 
   const batchPanel = document.createElement('div');
   batchPanel.className = 'batch-panel';
-  batchPanel.innerHTML = `
-    <div class="batch-title">ω 総当りバッチ（図形ごと・軌跡のみ・ZIP）</div>
+    batchPanel.innerHTML = `
+    <div class="batch-title">${L('batch.title')}</div>
     <div class="cf">
-      <span class="cf-lbl">ω 範囲</span>
+      <span class="cf-lbl">${L('batch.omegaRange')}</span>
       <input type="number" class="w60" id="batchOmegaMin" value="-5" step="0.1">
-      <span class="sep">〜</span>
+      <span class="sep">${L('batch.to')}</span>
       <input type="number" class="w60" id="batchOmegaMax" value="5" step="0.1">
-      <span class="sep">刻み</span>
+      <span class="sep">${L('batch.step')}</span>
       <input type="number" class="w60" id="batchOmegaStep" value="0.1" step="0.1" min="0.01">
     </div>
     <div class="cf">
-      <span class="cf-lbl">秒数</span>
+      <span class="cf-lbl">${L('batch.seconds')}</span>
       <input type="number" class="w60" id="batchDuration" value="10" min="0.5" step="0.5">
-      <span class="sep">秒 / パターン</span>
+      <span class="sep">${L('batch.perPattern')}</span>
     </div>
-    <div class="desc">ω −5〜5・刻み0.1 → 101通り/図形。2図形なら 101×101 = 10,201 通り（(通り数)^図形数）</div>
+    <div class="desc">${t('batch.desc')}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button type="button" class="reset-btn" id="batchExportBtn">バッチ ZIP 書き出し</button>
-      <button type="button" class="reset-btn" id="batchCancelBtn" disabled>キャンセル</button>
+      <button type="button" class="reset-btn" id="batchExportBtn">${L('batch.export')}</button>
+      <button type="button" class="reset-btn" id="batchCancelBtn" disabled>${L('batch.cancel')}</button>
     </div>
     <div class="batch-progress">
       <progress id="batchProgressBar" value="0" max="1"></progress>
@@ -4745,7 +4840,7 @@ async function getFfmpeg() {
 }
 
 async function transcodeWebmToH264Mp4(webmBlob) {
-  setRecStatus('H.264 変換中…');
+  setRecStatus(t('rec.h264Encode'));
   const ffmpeg = await getFfmpeg();
   const input = new Uint8Array(await webmBlob.arrayBuffer());
   await ffmpeg.writeFile('input.webm', input);
@@ -4790,7 +4885,7 @@ async function startRecordingWebCodecs(encoderConfig) {
   recFrameCount = 0;
   recordStartTime = performance.now();
   updateRecordUI(true);
-  setRecStatus('H.264 録画中');
+  setRecStatus(t('rec.h264Recording'));
   tickRecTime();
   recordTimerId = setInterval(tickRecTime, 250);
 }
@@ -4812,7 +4907,7 @@ function captureRecordingFrame() {
 async function finishWebCodecsRecording() {
   isProcessingRecording = true;
   updateRecordUI(false);
-  setRecStatus('MP4 書き出し中…');
+  setRecStatus(t('rec.mp4Export'));
   try {
     if (videoEncoder && videoEncoder.state === 'configured') {
       await videoEncoder.flush();
@@ -4826,7 +4921,7 @@ async function finishWebCodecsRecording() {
       recMuxer = null;
     }
   } catch (e) {
-    alert('MP4 の書き出しに失敗しました: ' + e.message);
+    alert(t('rec.mp4Fail', { msg: e.message }));
   } finally {
     recMode = null;
     recEncoderConfig = null;
@@ -4860,7 +4955,7 @@ function startRecordingWebM() {
     if (ev.data && ev.data.size) recordChunks.push(ev.data);
   };
   mediaRecorder.onerror = () => {
-    alert('録画中にエラーが発生しました。');
+    alert(t('rec.error'));
     stopRecording();
   };
 
@@ -4868,7 +4963,7 @@ function startRecordingWebM() {
   mediaRecorder.start(250);
   recordStartTime = Date.now();
   updateRecordUI(true);
-  setRecStatus('録画中（停止後 H.264 変換）');
+  setRecStatus(t('rec.webmNote'));
   tickRecTime();
   recordTimerId = setInterval(tickRecTime, 250);
 }
@@ -4912,7 +5007,7 @@ async function startRecording() {
   }
 
   if (!window.MediaRecorder || !canvas.captureStream) {
-    alert('このブラウザでは録画に対応していません。\nChrome / Firefox / Safari の最新版をお試しください。');
+    alert(t('rec.unsupported'));
     return;
   }
 
@@ -4966,7 +5061,7 @@ function importJsonFile(file) {
   reader.onload = () => {
     try {
       applySettingsSnapshot(JSON.parse(reader.result));
-    } catch (err) { alert('設定の読み込みに失敗しました: ' + err.message); }
+    } catch (err) { alert(t('import.fail', { msg: err.message })); }
   };
   reader.readAsText(file);
 }
@@ -5088,15 +5183,18 @@ function showSoundPrefsModal() {
     startDemoMode();
     return;
   }
+  applyStaticI18n();
+  initLangPicker(() => onLangChange());
   modal.classList.add('visible');
   modal.setAttribute('aria-hidden', 'false');
-  const pick = enableEffect => {
+  const pickEffect = enableEffect => {
+    closeLangPickerMenu();
     offBtn.classList.toggle('active-choice', !enableEffect);
     onBtn.classList.toggle('active-choice', enableEffect);
     dismissSoundPrefsModal(enableEffect);
   };
-  offBtn.addEventListener('click', () => pick(false), { once: true });
-  onBtn.addEventListener('click', () => pick(true), { once: true });
+  offBtn.addEventListener('click', () => pickEffect(false), { once: true });
+  onBtn.addEventListener('click', () => pickEffect(true), { once: true });
 }
 
 function startDemoMode() {
@@ -5137,7 +5235,7 @@ try {
   console.error(err);
   const box = document.createElement('pre');
   box.style.cssText = 'color:#f88;padding:16px;font:12px Menlo,monospace;white-space:pre-wrap';
-  box.textContent = '起動エラー: ' + (err && err.message ? err.message : String(err));
+  box.textContent = t('startup.error', { msg: err && err.message ? err.message : String(err) });
   document.body.appendChild(box);
 }
 
