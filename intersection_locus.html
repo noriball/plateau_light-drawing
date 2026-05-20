@@ -4,6 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Joseph Plateau's Light Drawing Simulator</title>
+<meta name="description" content="図形の交点が描く光の軌跡をブラウザで再現。ジョゼフ・プラトーの謎の軌跡図を体験できるインタラクティブシミュレーター。">
+<link rel="canonical" href="https://zeroworks.jp/plateau_light-drawing/intersection_locus.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Joseph Plateau's Light Drawing Simulator">
+<meta property="og:title" content="Joseph Plateau's Light Drawing Simulator">
+<meta property="og:description" content="図形の交点が描く光の軌跡をブラウザで再現。ジョゼフ・プラトーの謎の軌跡図を体験できるインタラクティブシミュレーター。">
+<meta property="og:url" content="https://zeroworks.jp/plateau_light-drawing/intersection_locus.html">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://zeroworks.jp/plateau_light-drawing/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Joseph Plateau's Light Drawing Simulator">
+<meta name="twitter:description" content="図形の交点が描く光の軌跡をブラウザで再現。ジョゼフ・プラトーの謎の軌跡図を体験できるインタラクティブシミュレーター。">
+<meta name="twitter:image" content="https://zeroworks.jp/plateau_light-drawing/assets/og-image.png">
+<meta name="theme-color" content="#0a0a12">
 <script src="site-config.js"></script>
 <script src="site-analytics.js"></script>
 <script src="vendor/math.min.js"></script>
@@ -3854,9 +3870,47 @@ function buildGlobalPresetThumb(data) {
   }
 }
 
+/** SNS OGP 用（1200×630）。no.1〜4 の実際の軌跡サムネを横並び */
+function buildSocialOgImage() {
+  const OG_W = 1200;
+  const OG_H = 630;
+  const cv = document.createElement('canvas');
+  cv.width = OG_W;
+  cv.height = OG_H;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#0a0a12';
+  c.fillRect(0, 0, OG_W, OG_H);
+  const n = GLOBAL_PRESET_SLOTS.length;
+  const pad = 36;
+  const gap = 22;
+  const cell = Math.min((OG_W - pad * 2 - gap * (n - 1)) / n, OG_H - pad * 2);
+  const y = (OG_H - cell) / 2;
+  c.imageSmoothingEnabled = true;
+  c.imageSmoothingQuality = 'high';
+  GLOBAL_PRESET_SLOTS.forEach((def, i) => {
+    const thumb = def._thumbCv;
+    if (!thumb) return;
+    const x = pad + i * (cell + gap);
+    c.drawImage(thumb, x, y, cell, cell);
+  });
+  return cv;
+}
+
+function maybeExportSocialOgImage() {
+  if (!new URLSearchParams(location.search).has('exportOg')) return;
+  const cv = buildSocialOgImage();
+  const a = document.createElement('a');
+  a.download = 'og-image.png';
+  a.href = cv.toDataURL('image/png');
+  a.click();
+  document.title = 'og-image.png exported';
+}
+
 function initGlobalPresetThumbs() {
   GLOBAL_PRESET_SLOTS.forEach(def => {
-    def._thumbSrc = buildGlobalPresetThumb(resolveGlobalPresetData(def.slot)).toDataURL('image/png');
+    const cv = buildGlobalPresetThumb(resolveGlobalPresetData(def.slot));
+    def._thumbCv = cv;
+    def._thumbSrc = cv.toDataURL('image/png');
   });
 }
 
@@ -5484,6 +5538,7 @@ try {
   syncGlobalPresetsFromNamedSaves();
   seedBuiltinGlobalPresets();
   initGlobalPresetThumbs();
+  maybeExportSocialOgImage();
   applyInitialShapes();
   PAIRS = computePairs();
   activeTabIdx = 0;

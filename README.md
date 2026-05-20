@@ -18,10 +18,28 @@ python3 -m http.server 8765
 
 プレースホルダ（`G-XXXXXXXXXX`）のままではタグは読み込まれません。
 
+## SNS（OGP / X カード）
+
+`intersection_locus.html` の `<head>` に Open Graph / Twitter Card のメタタグがあります。本番は `https://zeroworks.jp/plateau_light-drawing/`。URL を変えるときは次を揃えてください。
+
+- `site-config.js` の `siteBaseUrl` / `social.*`
+- `intersection_locus.html` の `canonical`・`og:url`・`og:image`・`twitter:image`
+
+**OG 画像**はアプリの no.1〜4 軌跡サムネから自動合成します（AI 生成画像は使いません）。
+
+```bash
+# Playwright が必要: npx playwright install chromium
+node scripts/export-og-image.mjs
+# → assets/og-image.png をコミット
+```
+
+ブラウザだけで行う場合: `intersection_locus.html?exportOg=1` を開くと `og-image.png` がダウンロードされます。
+
 ## 構成
 
 - `intersection_locus.html` — メインアプリ
-- `site-config.js` — GA4 測定 ID などサイト設定
+- `site-config.js` — GA4 測定 ID・公開 URL・SNS 文言
+- `assets/og-image.png` — SNS プレビュー用（上記スクリプトで更新）
 - `site-analytics.js` — gtag 読み込み
 - `presets/` — グローバルプリセット（JSON / JS）
 - `vendor/` — 外部ライブラリ（math.js, ffmpeg, mp4-muxer など）
